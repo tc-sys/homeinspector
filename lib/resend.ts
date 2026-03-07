@@ -1,6 +1,12 @@
 import { Resend } from 'resend'
 
-export const resend = new Resend(process.env.RESEND_API_KEY)
+function getResendClient(): Resend {
+  const key = process.env.RESEND_API_KEY
+  if (!key) {
+    throw new Error('RESEND_API_KEY is not configured')
+  }
+  return new Resend(key)
+}
 
 export async function sendInspectionConfirmation(
   clientEmail: string,
@@ -12,6 +18,7 @@ export async function sendInspectionConfirmation(
   inspectorPhone: string,
   manageUrl?: string
 ) {
+  const resend = getResendClient()
   await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL!,
     to: clientEmail,
@@ -43,6 +50,7 @@ export async function sendInspectionReminder(
   inspectorName: string,
   manageUrl?: string
 ) {
+  const resend = getResendClient()
   await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL!,
     to: clientEmail,
@@ -71,6 +79,7 @@ export async function sendInvoiceEmail(
   paymentLink: string,
   inspectorName: string
 ) {
+  const resend = getResendClient()
   await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL!,
     to: clientEmail,
