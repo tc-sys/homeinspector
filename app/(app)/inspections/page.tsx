@@ -7,6 +7,7 @@ import { Plus, Search } from 'lucide-react'
 import Link from 'next/link'
 import type { Inspection } from '@/types'
 import { isDemoMode, DEMO_INSPECTIONS } from '@/lib/demo'
+import { InspectionsMapDialog } from '@/components/inspections-map-dialog'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,12 +50,24 @@ export default async function InspectionsPage({
           <h1 className="text-2xl font-bold text-gray-900">Inspections</h1>
           <p className="text-gray-500 mt-1">{inspections.length} total inspections</p>
         </div>
-        <Button asChild>
-          <Link href="/inspections/new">
-            <Plus className="h-4 w-4 mr-2" />
-            New Inspection
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <InspectionsMapDialog
+            inspections={inspections.map(inspection => ({
+              id: inspection.id,
+              address: inspection.address,
+              city: inspection.city,
+              state: inspection.state,
+              zip: inspection.zip,
+              status: inspection.status,
+            }))}
+          />
+          <Button asChild>
+            <Link href="/inspections/new">
+              <Plus className="h-4 w-4 mr-2" />
+              New Inspection
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-4 flex-wrap">
