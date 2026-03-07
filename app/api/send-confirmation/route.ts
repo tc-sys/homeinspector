@@ -4,6 +4,7 @@ import { sendInspectionConfirmation, sendInspectionReminder } from '@/lib/resend
 import { sendInspectionConfirmationSMS, sendInspectionReminderSMS } from '@/lib/twilio'
 import { formatDate, formatTime } from '@/lib/utils'
 import { z } from 'zod'
+import { getAppUrl } from '@/lib/app-url'
 
 const payloadSchema = z.object({
   type: z.enum(['inspection_confirmation', 'inspection_reminder']),
@@ -46,8 +47,9 @@ export async function POST(request: Request) {
   const address = `${inspection.address}, ${inspection.city}, ${inspection.state}`
   const inspectorName = inspector?.full_name ?? 'Your Inspector'
   const inspectorPhone = inspector?.phone ?? ''
+  const appUrl = getAppUrl()
   const manageUrl = inspection.client_portal_token
-    ? `${process.env.NEXT_PUBLIC_APP_URL}/booking/manage/${inspection.client_portal_token}`
+    ? `${appUrl}/booking/manage/${inspection.client_portal_token}`
     : undefined
 
   if (type === 'inspection_confirmation') {

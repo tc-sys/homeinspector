@@ -1,4 +1,5 @@
 import Stripe from 'stripe'
+import { getAppUrl } from '@/lib/app-url'
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2026-02-25.clover',
@@ -12,6 +13,8 @@ export async function createPaymentLink(
   invoiceId: string,
   passCardFee: boolean
 ): Promise<string> {
+  const appUrl = getAppUrl()
+
   // Card fee is typically 2.9% + 30 cents
   const cardFeeAmount = passCardFee
     ? Math.round(amount * 0.029 + 30)
@@ -37,8 +40,8 @@ export async function createPaymentLink(
     metadata: {
       invoice_id: invoiceId,
     },
-    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/invoices?paid=true`,
-    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/invoices`,
+    success_url: `${appUrl}/invoices?paid=true`,
+    cancel_url: `${appUrl}/invoices`,
   })
 
   return session.url!
