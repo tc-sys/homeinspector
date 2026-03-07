@@ -1,10 +1,16 @@
 import Stripe from 'stripe'
 import { getAppUrl } from '@/lib/app-url'
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-02-25.clover',
-  typescript: true,
-})
+export function getStripeClient(): Stripe {
+  const key = process.env.STRIPE_SECRET_KEY
+  if (!key) {
+    throw new Error('STRIPE_SECRET_KEY is not configured')
+  }
+  return new Stripe(key, {
+    apiVersion: '2026-02-25.clover',
+    typescript: true,
+  })
+}
 
 export async function createPaymentLink(
   amount: number,
@@ -14,6 +20,7 @@ export async function createPaymentLink(
   passCardFee: boolean
 ): Promise<string> {
   const appUrl = getAppUrl()
+  const stripe = getStripeClient()
 
   // Card fee is typically 2.9% + 30 cents
   const cardFeeAmount = passCardFee

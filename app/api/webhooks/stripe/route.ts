@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
-import { stripe } from '@/lib/stripe'
+import { getStripeClient } from '@/lib/stripe'
 import { createServiceRoleClient } from '@/lib/supabase-server'
 import type Stripe from 'stripe'
 import { toISODateLocal } from '@/lib/utils'
 
 export async function POST(request: Request) {
+  const stripe = getStripeClient()
   const body = await request.text()
   const signature = request.headers.get('stripe-signature')!
 
