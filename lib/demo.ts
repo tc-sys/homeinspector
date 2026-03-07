@@ -1,7 +1,11 @@
 import type { Client, Agent, Service, Inspection, Invoice, ContactLog, ReportTemplate } from '@/types'
 
 export function isDemoMode(): boolean {
-  return process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
+  const envDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
+  const hasSupabaseConfig = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  )
+  return envDemo || !hasSupabaseConfig
 }
 
 export const DEMO_USER_ID = 'demo-user-00000000'
