@@ -136,7 +136,7 @@ function NewInspectionForm() {
           agent_id: form.agent_id || null,
           service_id: form.service_id || null,
           template_id: form.template_id || null,
-          inspection_type: selectedTemplate?.name ?? form.inspection_type || 'General Home Inspection',
+          inspection_type: selectedTemplate?.name ?? (form.inspection_type || 'General Home Inspection'),
           price: priceInCents,
           square_footage: form.square_footage ? parseInt(form.square_footage) : null,
           year_built: form.year_built ? parseInt(form.year_built) : null,
