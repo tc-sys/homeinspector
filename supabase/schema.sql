@@ -16,6 +16,9 @@ create table if not exists public.user_profiles (
   company_name text,
   phone text,
   logo_url text,
+  website text,
+  inspector_photo_url text,
+  default_cover_photo_url text,
   booking_slug text unique,
   created_at timestamptz default now() not null,
   updated_at timestamptz default now() not null
@@ -118,6 +121,7 @@ create table if not exists public.inspections (
   year_built integer,
   price integer not null default 0, -- in cents
   report_locked boolean default false not null,
+  cover_photo_url text,
   client_portal_token text unique,
   created_at timestamptz default now() not null,
   updated_at timestamptz default now() not null
@@ -128,6 +132,11 @@ create index if not exists inspections_scheduled_date_idx on public.inspections(
 create index if not exists inspections_client_id_idx on public.inspections(client_id);
 create index if not exists inspections_agent_id_idx on public.inspections(agent_id);
 create index if not exists inspections_client_portal_token_idx on public.inspections(client_portal_token);
+
+alter table public.user_profiles add column if not exists website text;
+alter table public.user_profiles add column if not exists inspector_photo_url text;
+alter table public.user_profiles add column if not exists default_cover_photo_url text;
+alter table public.inspections add column if not exists cover_photo_url text;
 
 -- ============================================================
 -- REPORT TEMPLATES

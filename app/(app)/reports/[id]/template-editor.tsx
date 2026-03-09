@@ -30,7 +30,7 @@ import {
   Loader2,
   AlertTriangle,
 } from 'lucide-react'
-import type { ReportTemplate, ReportSection, ReportItem, ItemCondition, ItemRecommendation, Inspection } from '@/types'
+import type { ReportTemplate, ReportSection, ReportItem, ItemCondition, ItemRecommendation, Inspection, UserProfile } from '@/types'
 import { isDemoMode } from '@/lib/demo'
 
 // ─── Condition & Recommendation config ───────────────────────────────────────
@@ -334,9 +334,11 @@ function SortableSectionCard({
 export function TemplateEditor({
   template,
   inspectionContext,
+  profileContext,
 }: {
   template: ReportTemplate
   inspectionContext?: Inspection | null
+  profileContext?: Partial<UserProfile> | null
 }) {
   const [sections, setSections] = useState<ReportSection[]>(template.sections)
   const [generatingPDF, setGeneratingPDF] = useState(false)
@@ -440,10 +442,23 @@ export function TemplateEditor({
         : undefined
       const docElement = createElement(ReportDocument, {
         template: { ...template, sections },
-        inspectionAddress,
-        clientName,
-        inspectionDate: inspectionContext?.scheduled_date ?? new Date().toISOString().split('T')[0],
-        inspectorName: 'InspectPro Inspector',
+        branding: {
+          companyName: profileContext?.company_name ?? 'Professional Home Inspections LLC',
+          phone: profileContext?.phone ?? null,
+          email: profileContext?.email ?? null,
+          website: profileContext?.website ?? null,
+          logoUrl: profileContext?.logo_url ?? null,
+          inspectorName: profileContext?.full_name ?? 'Inspector',
+          inspectorPhotoUrl: profileContext?.inspector_photo_url ?? null,
+          defaultCoverPhotoUrl: profileContext?.default_cover_photo_url ?? null,
+        },
+        inspectionMeta: {
+          inspectionType: inspectionContext?.inspection_type ?? 'Residential Property Inspection',
+          inspectionAddress,
+          clientName: clientName ?? null,
+          inspectionDate: inspectionContext?.scheduled_date ?? new Date().toISOString().split('T')[0],
+          coverPhotoUrl: inspectionContext?.cover_photo_url ?? null,
+        },
       })
       // @react-pdf/renderer pdf() requires a Document element — cast needed
       // eslint-disable-next-line

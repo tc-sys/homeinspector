@@ -149,6 +149,38 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label>Website</Label>
+                  <Input
+                    value={profile.website ?? ''}
+                    onChange={e => setProfile(p => ({ ...p, website: e.target.value }))}
+                    placeholder="https://yourcompany.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Logo URL</Label>
+                  <Input
+                    value={profile.logo_url ?? ''}
+                    onChange={e => setProfile(p => ({ ...p, logo_url: e.target.value }))}
+                    placeholder="https://.../logo.png"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Inspector Photo URL</Label>
+                  <Input
+                    value={profile.inspector_photo_url ?? ''}
+                    onChange={e => setProfile(p => ({ ...p, inspector_photo_url: e.target.value }))}
+                    placeholder="https://.../inspector-photo.jpg"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Default Report Cover Photo URL</Label>
+                  <Input
+                    value={profile.default_cover_photo_url ?? ''}
+                    onChange={e => setProfile(p => ({ ...p, default_cover_photo_url: e.target.value }))}
+                    placeholder="https://.../property-cover.jpg"
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label>Booking Slug</Label>
                   <Input
                     value={profile.booking_slug ?? ''}

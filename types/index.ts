@@ -9,6 +9,9 @@ export interface UserProfile {
   company_name: string | null
   phone: string | null
   logo_url: string | null
+  website?: string | null
+  inspector_photo_url?: string | null
+  default_cover_photo_url?: string | null
   booking_slug: string | null
   created_at: string
   updated_at: string
@@ -74,6 +77,7 @@ export interface Inspection {
   year_built: number | null
   price: number
   report_locked: boolean
+  cover_photo_url?: string | null
   client_portal_token?: string | null
   created_at: string
   updated_at: string
