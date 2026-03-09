@@ -22,11 +22,10 @@ function daysAgo(days: number): Date {
 }
 
 export function isDemoMode(): boolean {
-  const envDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
-  const hasSupabaseConfig = Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  )
-  return envDemo || !hasSupabaseConfig
+  const envDemo = process.env.NEXT_PUBLIC_DEMO_MODE
+  if (envDemo === 'false') return false
+  if (envDemo === 'true') return true
+  return true
 }
 
 export function getDemoSource(): DemoSource {
