@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/card'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import type { Inspection } from '@/types'
+import { isDemoMode, DEMO_INSPECTIONS } from '@/lib/demo'
 
 // Disable SSR for FullCalendar — it uses browser APIs directly
 const FullCalendar = nextDynamic(() => import('@fullcalendar/react'), { ssr: false })
@@ -25,11 +26,32 @@ const statusColors: Record<string, string> = {
 
 export default function SchedulePage() {
   const [events, setEvents] = useState<object[]>([])
-  const [bookingLink, setBookingLink] = useState('/book')
+  const [bookingLink, setBookingLink] = useState('/book/keystone-philly')
   const supabase = createClient()
 
   useEffect(() => {
     async function loadInspections() {
+      if (isDemoMode()) {
+        const calEvents = DEMO_INSPECTIONS
+          .filter(inspection => inspection.status !== 'cancelled')
+          .map(inspection => ({
+            id: inspection.id,
+            title: inspection.client
+              ? `${inspection.client.first_name} ${inspection.client.last_name} — ${inspection.address}`
+              : inspection.address,
+            start: `${inspection.scheduled_date}T${inspection.scheduled_time}`,
+            end: new Date(
+              new Date(`${inspection.scheduled_date}T${inspection.scheduled_time}`).getTime() +
+              inspection.duration_minutes * 60000
+            ).toISOString(),
+            url: `/inspections/${inspection.id}`,
+            backgroundColor: statusColors[inspection.status] ?? '#3b82f6',
+            borderColor: 'transparent',
+          }))
+        setEvents(calEvents)
+        return
+      }
+
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 

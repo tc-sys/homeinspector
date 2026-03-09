@@ -1,5 +1,21 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Demo Mode
+
+This app includes a sales-demo scenario designed to look like a high-volume Philadelphia firm with ~90 days of activity.
+
+Environment variables:
+
+```bash
+NEXT_PUBLIC_DEMO_MODE=true
+DEMO_SOURCE=builtin
+DEMO_SCENARIO=phl_large_firm_90d
+```
+
+`DEMO_SOURCE` options:
+- `builtin`: use generated in-app dataset from `lib/demo.ts`
+- `db`: use Supabase-seeded demo data (see `supabase/DEMO_SEED_PLAYBOOK.md`)
+
 ## Getting Started
 
 First, run the development server:

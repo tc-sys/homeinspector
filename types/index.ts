@@ -191,3 +191,28 @@ export interface PublicBookingProfile {
   phone: string | null
   booking_slug: string
 }
+
+export interface DemoFirmProfile {
+  id: string
+  name: string
+  region: string
+  active_since: string
+  team_size: number
+  monthly_inspection_target: number
+}
+
+export type DemoScenario = 'phl_large_firm_90d'
+export type DemoSource = 'builtin' | 'db'
+
+export interface DemoActivityEvent {
+  id: string
+  type: 'inspection_booked' | 'inspection_completed' | 'invoice_paid' | 'report_saved' | 'client_added' | 'agent_followup'
+  description: string
+  created_at: string
+}
+
+export interface DemoRuntimeConfig {
+  mode: boolean
+  source: DemoSource
+  scenario: DemoScenario
+}

@@ -11,14 +11,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
 import { Plus, Trash2 } from 'lucide-react'
 import type { Service, UserProfile } from '@/types'
+import { isDemoMode, DEMO_FIRM_PROFILE, DEMO_SERVICES, getDemoScenario, getDemoSource } from '@/lib/demo'
 
 export default function SettingsPage() {
-  const supabase = createClient()
+  const demoMode = isDemoMode()
+  const supabase = demoMode ? null : createClient()
   const [profile, setProfile] = useState<Partial<UserProfile>>({})
   const [services, setServices] = useState<Service[]>([])
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
   const [newService, setNewService] = useState({ name: '', description: '', base_price: '', duration_minutes: '180' })
+  const [demoSaved, setDemoSaved] = useState(false)
+  const [demoProfile, setDemoProfile] = useState('phl_large_firm_90d')
 
   function createBookingSlug() {
     const source = (profile.company_name || profile.full_name || 'inspector')
@@ -31,13 +35,31 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    const existing = window.localStorage.getItem('homeinspector_demo_profile')
+    if (existing) setDemoProfile(existing)
+  }, [])
+
+  useEffect(() => {
     async function loadData() {
-      const { data: { user } } = await supabase.auth.getUser()
+      if (demoMode) {
+        setProfile({
+          full_name: 'Avery Thompson',
+          company_name: DEMO_FIRM_PROFILE.name,
+          phone: '(267) 555-0184',
+          website: 'https://keystonepremierexample.com',
+          booking_slug: 'keystone-philly',
+        })
+        setServices(DEMO_SERVICES)
+        return
+      }
+
+      const { data: { user } } = await supabase!.auth.getUser()
       if (!user) return
 
       const [{ data: p }, { data: s }] = await Promise.all([
-        supabase.from('user_profiles').select('*').eq('id', user.id).single(),
-        supabase.from('services').select('*').eq('user_id', user.id).order('name'),
+        supabase!.from('user_profiles').select('*').eq('id', user.id).single(),
+        supabase!.from('services').select('*').eq('user_id', user.id).order('name'),
       ])
 
       if (p) {
@@ -50,14 +72,19 @@ export default function SettingsPage() {
     }
     loadData()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [demoMode])
 
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault()
+    if (demoMode) {
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+      return
+    }
     setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabase!.auth.getUser()
 
-    const { error } = await supabase.from('user_profiles').upsert({
+    const { error } = await supabase!.from('user_profiles').upsert({
       id: user!.id,
       ...profile,
       booking_slug: profile.booking_slug ?? createBookingSlug(),
@@ -73,9 +100,10 @@ export default function SettingsPage() {
 
   async function addService(e: React.FormEvent) {
     e.preventDefault()
-    const { data: { user } } = await supabase.auth.getUser()
+    if (demoMode) return
+    const { data: { user } } = await supabase!.auth.getUser()
 
-    const { data } = await supabase.from('services').insert({
+    const { data } = await supabase!.from('services').insert({
       user_id: user!.id,
       name: newService.name,
       description: newService.description || null,
@@ -91,14 +119,30 @@ export default function SettingsPage() {
   }
 
   async function toggleService(serviceId: string, active: boolean) {
-    await supabase.from('services').update({ active }).eq('id', serviceId)
+    if (!demoMode) await supabase!.from('services').update({ active }).eq('id', serviceId)
     setServices(prev => prev.map(s => s.id === serviceId ? { ...s, active } : s))
   }
 
   async function deleteService(serviceId: string) {
     if (!confirm('Delete this service?')) return
-    await supabase.from('services').delete().eq('id', serviceId)
+    if (!demoMode) await supabase!.from('services').delete().eq('id', serviceId)
     setServices(prev => prev.filter(s => s.id !== serviceId))
+  }
+
+  function saveDemoProfile() {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('homeinspector_demo_profile', demoProfile)
+    }
+    setDemoSaved(true)
+    setTimeout(() => setDemoSaved(false), 2500)
+  }
+
+  function resetDemoData() {
+    if (typeof window !== 'undefined') {
+      const keys = Object.keys(window.localStorage).filter(k => k.startsWith('homeinspector_demo_'))
+      keys.forEach(k => window.localStorage.removeItem(k))
+      window.location.reload()
+    }
   }
 
   const bookingLink = typeof window !== 'undefined'
@@ -117,6 +161,7 @@ export default function SettingsPage() {
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="services">Services & Pricing</TabsTrigger>
           <TabsTrigger value="booking">Booking Page</TabsTrigger>
+          <TabsTrigger value="demo">Demo Controls</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="mt-6">
@@ -321,6 +366,54 @@ export default function SettingsPage() {
                   {`<iframe src="${bookingLink}" width="100%" height="700" frameborder="0"></iframe>`}
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="demo" className="mt-6">
+          <Card>
+            <CardHeader><CardTitle>Sales Demo Controls</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                <div className="p-3 rounded-lg bg-gray-50">
+                  <p className="text-gray-500">Demo Mode</p>
+                  <p className="font-semibold text-gray-900 mt-1">{demoMode ? 'Enabled' : 'Disabled'}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-gray-50">
+                  <p className="text-gray-500">Source</p>
+                  <p className="font-semibold text-gray-900 mt-1">{getDemoSource()}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-gray-50">
+                  <p className="text-gray-500">Scenario</p>
+                  <p className="font-semibold text-gray-900 mt-1">{getDemoScenario()}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Demo Profile</Label>
+                <select
+                  value={demoProfile}
+                  onChange={e => setDemoProfile(e.target.value)}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="phl_large_firm_90d">Large Philly Firm (3 months active)</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3">
+                <Button type="button" onClick={saveDemoProfile} variant="outline">
+                  Save Demo Profile
+                </Button>
+                <Button type="button" onClick={resetDemoData}>
+                  Reset Demo Data
+                </Button>
+                {demoSaved && <span className="text-sm text-green-600 self-center">Demo settings saved</span>}
+              </div>
+
+              <p className="text-xs text-gray-500">
+                Built-in demo mode resets instantly on reload. To use persistent DB demo data, set `DEMO_SOURCE=db`
+                and run the Supabase seed playbook.
+              </p>
             </CardContent>
           </Card>
         </TabsContent>

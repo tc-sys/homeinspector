@@ -1,4 +1,25 @@
-import type { Client, Agent, Service, Inspection, Invoice, ContactLog, ReportTemplate } from '@/types'
+import type {
+  Client,
+  Agent,
+  Service,
+  Inspection,
+  Invoice,
+  ContactLog,
+  ReportTemplate,
+  DemoActivityEvent,
+  DemoFirmProfile,
+  DemoScenario,
+  DemoSource,
+  DemoRuntimeConfig,
+} from '@/types'
+
+function dateOnly(date: Date): string {
+  return date.toISOString().split('T')[0]
+}
+
+function daysAgo(days: number): Date {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+}
 
 export function isDemoMode(): boolean {
   const envDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
@@ -8,462 +29,316 @@ export function isDemoMode(): boolean {
   return envDemo || !hasSupabaseConfig
 }
 
+export function getDemoSource(): DemoSource {
+  return process.env.DEMO_SOURCE === 'db' ? 'db' : 'builtin'
+}
+
+export function getDemoScenario(): DemoScenario {
+  return process.env.DEMO_SCENARIO === 'phl_large_firm_90d'
+    ? 'phl_large_firm_90d'
+    : 'phl_large_firm_90d'
+}
+
+export function getDemoRuntimeConfig(): DemoRuntimeConfig {
+  return {
+    mode: isDemoMode(),
+    source: getDemoSource(),
+    scenario: getDemoScenario(),
+  }
+}
+
 export const DEMO_USER_ID = 'demo-user-00000000'
+export const DEMO_FIRM_PROFILE: DemoFirmProfile = {
+  id: 'firm-1',
+  name: 'Keystone Premier Home Contracting Group',
+  region: 'Philadelphia Metro',
+  active_since: dateOnly(daysAgo(90)),
+  team_size: 42,
+  monthly_inspection_target: 120,
+}
 
-export const DEMO_CLIENTS: Client[] = [
-  {
-    id: 'client-1',
-    user_id: DEMO_USER_ID,
-    first_name: 'Sarah',
-    last_name: 'Mitchell',
-    email: 'sarah.mitchell@email.com',
-    phone: '(555) 234-5678',
-    address: '742 Evergreen Terrace, Springfield, IL',
-    notes: 'First-time buyer, very detail-oriented. Prefers morning appointments.',
-    tags: ['First-Time Buyer', 'VIP'],
-    created_at: '2026-02-10T10:00:00Z',
-    updated_at: '2026-02-10T10:00:00Z',
-  },
-  {
-    id: 'client-2',
-    user_id: DEMO_USER_ID,
-    first_name: 'James',
-    last_name: 'Thornton',
-    email: 'jthornton@gmail.com',
-    phone: '(555) 876-3421',
-    address: '1600 Oak Lane, Shelbyville, IL',
-    notes: 'Investor, owns several rental properties. Needs quick turnaround.',
-    tags: ['Investor', 'Past Client'],
-    created_at: '2026-01-15T09:00:00Z',
-    updated_at: '2026-01-15T09:00:00Z',
-  },
-  {
-    id: 'client-3',
-    user_id: DEMO_USER_ID,
-    first_name: 'Maria',
-    last_name: 'Gonzalez',
-    email: 'mgonzalez@outlook.com',
-    phone: '(555) 512-9087',
-    address: null,
-    notes: null,
-    tags: ['Referral'],
-    created_at: '2026-03-01T14:00:00Z',
-    updated_at: '2026-03-01T14:00:00Z',
-  },
+const PHILLY_STREETS = [
+  'Walnut St', 'Chestnut St', 'Spruce St', 'Pine St', 'South St', 'Market St', 'Frankford Ave',
+  'Passyunk Ave', 'Ridge Ave', 'Girard Ave', 'Washington Ave', 'Locust St', 'Tasker St', 'Mifflin St',
+  'Lombard St', 'Poplar St', 'Master St', 'Morris St', 'Cedar Ave', 'Lansdowne Ave',
 ]
 
-export const DEMO_AGENTS: Agent[] = [
-  {
-    id: 'agent-1',
-    user_id: DEMO_USER_ID,
-    first_name: 'David',
-    last_name: 'Hartwell',
-    email: 'david@kwrealty.com',
-    phone: '(555) 321-4567',
-    brokerage: 'Keller Williams Realty',
-    notes: 'Top producer in the Northside market. Sends 3-4 referrals per month.',
-    tags: ['Top Referrer', 'VIP Partner'],
-    referral_count: 14,
-    created_at: '2025-09-01T08:00:00Z',
-    updated_at: '2026-02-20T08:00:00Z',
-  },
-  {
-    id: 'agent-2',
-    user_id: DEMO_USER_ID,
-    first_name: 'Lisa',
-    last_name: 'Park',
-    email: 'lisa.park@remax.com',
-    phone: '(555) 654-9870',
-    brokerage: 'RE/MAX Elite',
-    notes: 'Specializes in luxury homes. Clients expect premium service.',
-    tags: ['Agent Partner'],
-    referral_count: 6,
-    created_at: '2025-11-01T08:00:00Z',
-    updated_at: '2026-01-10T08:00:00Z',
-  },
+const PHILLY_AREAS = [
+  { city: 'Philadelphia', state: 'PA', zip: '19103' },
+  { city: 'Philadelphia', state: 'PA', zip: '19147' },
+  { city: 'Philadelphia', state: 'PA', zip: '19146' },
+  { city: 'Philadelphia', state: 'PA', zip: '19125' },
+  { city: 'Ardmore', state: 'PA', zip: '19003' },
+  { city: 'Bryn Mawr', state: 'PA', zip: '19010' },
+  { city: 'Villanova', state: 'PA', zip: '19085' },
+  { city: 'Radnor', state: 'PA', zip: '19087' },
+  { city: 'Conshohocken', state: 'PA', zip: '19428' },
+  { city: 'King of Prussia', state: 'PA', zip: '19406' },
+  { city: 'Doylestown', state: 'PA', zip: '18901' },
+  { city: 'Jenkintown', state: 'PA', zip: '19046' },
+  { city: 'Media', state: 'PA', zip: '19063' },
+  { city: 'Havertown', state: 'PA', zip: '19083' },
+  { city: 'West Chester', state: 'PA', zip: '19380' },
 ]
+
+const FIRST_NAMES = [
+  'Olivia', 'Noah', 'Liam', 'Emma', 'Sophia', 'Mason', 'Ava', 'Ethan', 'Mia', 'Lucas', 'Harper',
+  'Amelia', 'Elijah', 'James', 'Charlotte', 'Benjamin', 'Evelyn', 'Daniel', 'Logan', 'Scarlett',
+]
+
+const LAST_NAMES = [
+  'Anderson', 'Bennett', 'Carter', 'Diaz', 'Ellis', 'Foster', 'Garcia', 'Hughes', 'Irving', 'Johnson',
+  'Keller', 'Lawson', 'Mitchell', 'Nguyen', 'Owens', 'Parker', 'Quinn', 'Roberts', 'Stevens', 'Turner',
+]
+
+function fullName(index: number): { first: string; last: string } {
+  return {
+    first: FIRST_NAMES[index % FIRST_NAMES.length],
+    last: LAST_NAMES[Math.floor(index / 2) % LAST_NAMES.length],
+  }
+}
 
 export const DEMO_SERVICES: Service[] = [
-  {
-    id: 'service-1',
-    user_id: DEMO_USER_ID,
-    name: 'Standard Home Inspection',
-    description: 'Full inspection of structure, systems, and components',
-    base_price: 37500,
-    duration_minutes: 180,
-    active: true,
-    created_at: '2025-09-01T08:00:00Z',
-  },
-  {
-    id: 'service-2',
-    user_id: DEMO_USER_ID,
-    name: 'Radon Testing Add-on',
-    description: '48-hour continuous radon test with certified report',
-    base_price: 15000,
-    duration_minutes: 30,
-    active: true,
-    created_at: '2025-09-01T08:00:00Z',
-  },
-  {
-    id: 'service-3',
-    user_id: DEMO_USER_ID,
-    name: 'Pre-Listing Inspection',
-    description: 'Seller inspection to identify issues before listing',
-    base_price: 32500,
-    duration_minutes: 150,
-    active: true,
-    created_at: '2025-09-01T08:00:00Z',
-  },
+  { id: 'service-1', user_id: DEMO_USER_ID, name: 'Residential Full Inspection', description: 'Comprehensive home inspection', base_price: 42500, duration_minutes: 180, active: true, created_at: dateOnly(daysAgo(90)) },
+  { id: 'service-2', user_id: DEMO_USER_ID, name: 'Townhome/Condo Inspection', description: 'Attached unit inspection', base_price: 35500, duration_minutes: 150, active: true, created_at: dateOnly(daysAgo(88)) },
+  { id: 'service-3', user_id: DEMO_USER_ID, name: 'Pre-Listing Inspection', description: 'Seller prep inspection', base_price: 39000, duration_minutes: 165, active: true, created_at: dateOnly(daysAgo(87)) },
+  { id: 'service-4', user_id: DEMO_USER_ID, name: 'New Construction Phase Inspection', description: 'Frame to final walkthrough', base_price: 46500, duration_minutes: 210, active: true, created_at: dateOnly(daysAgo(80)) },
+  { id: 'service-5', user_id: DEMO_USER_ID, name: '11-Month Warranty Inspection', description: 'Builder warranty review', base_price: 34500, duration_minutes: 150, active: true, created_at: dateOnly(daysAgo(79)) },
+  { id: 'service-6', user_id: DEMO_USER_ID, name: 'Radon Test Add-on', description: '48-hour monitored test', base_price: 17500, duration_minutes: 45, active: true, created_at: dateOnly(daysAgo(75)) },
+  { id: 'service-7', user_id: DEMO_USER_ID, name: 'Sewer Scope Add-on', description: 'Lateral line camera inspection', base_price: 22500, duration_minutes: 60, active: true, created_at: dateOnly(daysAgo(73)) },
+  { id: 'service-8', user_id: DEMO_USER_ID, name: 'Mold Screening', description: 'Visual + sample set', base_price: 28500, duration_minutes: 75, active: true, created_at: dateOnly(daysAgo(72)) },
+  { id: 'service-9', user_id: DEMO_USER_ID, name: 'Termite/WDI Inspection', description: 'Wood-destroying insect report', base_price: 15500, duration_minutes: 45, active: true, created_at: dateOnly(daysAgo(71)) },
+  { id: 'service-10', user_id: DEMO_USER_ID, name: 'Luxury Estate Inspection', description: 'Large estate multi-system inspection', base_price: 69500, duration_minutes: 300, active: true, created_at: dateOnly(daysAgo(70)) },
 ]
 
-export const DEMO_INSPECTIONS: Inspection[] = [
-  {
-    id: 'inspection-1',
+export const DEMO_CLIENTS: Client[] = Array.from({ length: 165 }, (_, i) => {
+  const name = fullName(i)
+  const area = PHILLY_AREAS[i % PHILLY_AREAS.length]
+  const street = PHILLY_STREETS[i % PHILLY_STREETS.length]
+  const houseNum = 100 + (i * 7 % 8900)
+  return {
+    id: `client-${i + 1}`,
     user_id: DEMO_USER_ID,
-    client_id: 'client-1',
-    agent_id: 'agent-1',
-    service_id: 'service-1',
-    address: '412 Maple Street',
-    city: 'Springfield',
-    state: 'IL',
-    zip: '62701',
-    scheduled_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    scheduled_time: '09:00',
-    duration_minutes: 180,
-    status: 'scheduled',
-    inspection_type: 'General Home Inspection',
-    notes: 'Gate code: 1234. Dog on premises — keep gate closed.',
-    square_footage: 2100,
-    year_built: 1998,
-    price: 37500,
-    report_locked: true,
-    created_at: '2026-03-01T10:00:00Z',
-    updated_at: '2026-03-01T10:00:00Z',
-    client: DEMO_CLIENTS[0],
-    agent: DEMO_AGENTS[0],
-  },
-  {
-    id: 'inspection-2',
+    first_name: name.first,
+    last_name: name.last,
+    email: `${name.first.toLowerCase()}.${name.last.toLowerCase()}${i}@example.com`,
+    phone: `(267) ${`${100 + (i % 800)}`.padStart(3, '0')}-${`${1000 + ((i * 11) % 9000)}`.padStart(4, '0')}`,
+    address: `${houseNum} ${street}, ${area.city}, ${area.state} ${area.zip}`,
+    notes: i % 3 === 0 ? 'Repeat buyer; prefers PDF + SMS updates.' : null,
+    tags: i % 5 === 0 ? ['VIP', 'Referral'] : i % 3 === 0 ? ['Investor'] : ['Buyer'],
+    created_at: daysAgo(89 - (i % 80)).toISOString(),
+    updated_at: daysAgo((i % 25)).toISOString(),
+  }
+})
+
+export const DEMO_AGENTS: Agent[] = Array.from({ length: 28 }, (_, i) => {
+  const name = fullName(i + 40)
+  const brokerage = ['Compass', 'BHHS Fox & Roach', 'Keller Williams', 'RE/MAX', 'Coldwell Banker'][i % 5]
+  return {
+    id: `agent-${i + 1}`,
     user_id: DEMO_USER_ID,
-    client_id: 'client-2',
-    agent_id: 'agent-2',
-    service_id: 'service-1',
-    address: '88 Birchwood Drive',
-    city: 'Shelbyville',
-    state: 'IL',
-    zip: '62565',
-    scheduled_date: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    scheduled_time: '13:00',
-    duration_minutes: 180,
-    status: 'scheduled',
-    inspection_type: 'Buyer Inspection',
-    notes: null,
-    square_footage: 3400,
-    year_built: 2005,
-    price: 37500,
-    report_locked: true,
-    created_at: '2026-03-02T14:00:00Z',
-    updated_at: '2026-03-02T14:00:00Z',
-    client: DEMO_CLIENTS[1],
-    agent: DEMO_AGENTS[1],
-  },
-  {
-    id: 'inspection-3',
-    user_id: DEMO_USER_ID,
-    client_id: 'client-2',
-    agent_id: 'agent-1',
-    service_id: 'service-1',
-    address: '220 Riverside Court',
-    city: 'Capital City',
-    state: 'IL',
-    zip: '62702',
-    scheduled_date: '2026-02-18',
-    scheduled_time: '10:00',
-    duration_minutes: 180,
-    status: 'completed',
-    inspection_type: 'General Home Inspection',
-    notes: null,
-    square_footage: 1850,
-    year_built: 1975,
-    price: 37500,
-    report_locked: false,
-    created_at: '2026-02-10T09:00:00Z',
-    updated_at: '2026-02-18T15:00:00Z',
-    client: DEMO_CLIENTS[1],
-    agent: DEMO_AGENTS[0],
-  },
-  {
-    id: 'inspection-4',
-    user_id: DEMO_USER_ID,
-    client_id: 'client-3',
-    agent_id: 'agent-1',
-    service_id: 'service-3',
-    address: '7 Prospect Hill Road',
-    city: 'Springfield',
-    state: 'IL',
-    zip: '62704',
-    scheduled_date: '2026-02-05',
-    scheduled_time: '09:00',
-    duration_minutes: 150,
-    status: 'completed',
-    inspection_type: 'Pre-Listing Inspection',
-    notes: null,
-    square_footage: 2600,
-    year_built: 2012,
-    price: 32500,
-    report_locked: false,
-    created_at: '2026-01-28T10:00:00Z',
-    updated_at: '2026-02-05T13:00:00Z',
-    client: DEMO_CLIENTS[2],
-    agent: DEMO_AGENTS[0],
-  },
+    first_name: name.first,
+    last_name: name.last,
+    email: `${name.first.toLowerCase()}.${name.last.toLowerCase()}@${brokerage.toLowerCase().replace(/\s+/g, '')}.com`,
+    phone: `(215) ${`${200 + (i % 700)}`.padStart(3, '0')}-${`${1000 + ((i * 13) % 9000)}`.padStart(4, '0')}`,
+    brokerage,
+    notes: i % 4 === 0 ? 'Top Main Line referral source.' : null,
+    tags: i % 4 === 0 ? ['Top Referrer', 'VIP Partner'] : ['Agent Partner'],
+    referral_count: 12 + (i * 3 % 37),
+    created_at: daysAgo(85 - i).toISOString(),
+    updated_at: daysAgo(i % 20).toISOString(),
+  }
+})
+
+function inspectionStatus(dayOffset: number, i: number): Inspection['status'] {
+  if (dayOffset <= 2) return i % 5 === 0 ? 'cancelled' : 'scheduled'
+  if (dayOffset <= 8) return i % 6 === 0 ? 'in_progress' : 'scheduled'
+  if (dayOffset <= 70) return i % 14 === 0 ? 'cancelled' : 'completed'
+  return i % 10 === 0 ? 'cancelled' : 'completed'
+}
+
+const INSPECTION_TYPES = [
+  'General Home Inspection',
+  'Buyer Inspection',
+  'Pre-Listing Inspection',
+  'New Construction Inspection',
+  '11-Month Warranty Inspection',
+  'Luxury Estate Inspection',
 ]
 
-export const DEMO_INVOICES: Invoice[] = [
-  {
-    id: 'invoice-1',
+export const DEMO_INSPECTIONS: Inspection[] = Array.from({ length: 96 }, (_, i) => {
+  const dayOffset = 90 - Math.floor((i / 96) * 90)
+  const date = daysAgo(dayOffset)
+  const area = PHILLY_AREAS[i % PHILLY_AREAS.length]
+  const street = PHILLY_STREETS[(i * 3) % PHILLY_STREETS.length]
+  const service = DEMO_SERVICES[i % DEMO_SERVICES.length]
+  const status = inspectionStatus(dayOffset, i)
+  const client = DEMO_CLIENTS[i % DEMO_CLIENTS.length]
+  const agent = DEMO_AGENTS[i % DEMO_AGENTS.length]
+  const scheduledHour = [8, 9, 10, 12, 13, 14, 15][i % 7]
+  const scheduledMinute = [0, 30][i % 2]
+  const sqft = 1200 + (i * 145 % 4200)
+  const basePrice = service.base_price + (sqft > 3500 ? 17500 : sqft > 2500 ? 6500 : 0)
+
+  return {
+    id: `inspection-${i + 1}`,
     user_id: DEMO_USER_ID,
-    inspection_id: 'inspection-1',
-    client_id: 'client-1',
-    amount: 37500,
-    tax_amount: 0,
-    total_amount: 37500,
-    status: 'pending',
-    due_date: null,
-    paid_date: null,
-    stripe_payment_intent_id: null,
-    stripe_payment_link: null,
-    pass_card_fee: false,
-    notes: null,
-    created_at: '2026-03-01T10:00:00Z',
-    updated_at: '2026-03-01T10:00:00Z',
-    client: DEMO_CLIENTS[0],
-    inspection: DEMO_INSPECTIONS[0],
-  },
-  {
-    id: 'invoice-2',
+    client_id: client.id,
+    agent_id: agent.id,
+    service_id: service.id,
+    address: `${220 + (i * 19 % 9100)} ${street}`,
+    city: area.city,
+    state: area.state,
+    zip: area.zip,
+    scheduled_date: dateOnly(date),
+    scheduled_time: `${`${scheduledHour}`.padStart(2, '0')}:${`${scheduledMinute}`.padStart(2, '0')}`,
+    duration_minutes: service.duration_minutes,
+    status,
+    inspection_type: INSPECTION_TYPES[i % INSPECTION_TYPES.length],
+    notes: i % 4 === 0 ? 'Occupied property. Supra access via listing agent.' : i % 3 === 0 ? 'Tenant occupied. 24hr notice required.' : null,
+    square_footage: sqft,
+    year_built: 1920 + (i * 3 % 103),
+    price: basePrice,
+    report_locked: status !== 'completed' || i % 5 === 0,
+    cover_photo_url: i % 3 === 0 ? `https://picsum.photos/seed/phl-home-${i}/1400/900` : null,
+    created_at: daysAgo(dayOffset + 7).toISOString(),
+    updated_at: daysAgo(Math.max(dayOffset - 1, 0)).toISOString(),
+    client,
+    agent,
+  }
+})
+
+export const DEMO_INVOICES: Invoice[] = DEMO_INSPECTIONS.map((inspection, i) => {
+  const dayOffset = 90 - Math.floor((i / 96) * 90)
+  const isOld = dayOffset > 20
+  const paid = inspection.status === 'completed' && (isOld ? i % 6 !== 0 : i % 3 === 0)
+  const overdue = !paid && inspection.status === 'completed' && i % 7 === 0
+  const status: Invoice['status'] = paid ? 'paid' : overdue ? 'overdue' : 'pending'
+  const total = inspection.price
+  const paidDate = paid ? dateOnly(daysAgo(Math.max(dayOffset - (2 + (i % 5)), 0))) : null
+  return {
+    id: `invoice-${i + 1}`,
     user_id: DEMO_USER_ID,
-    inspection_id: 'inspection-2',
-    client_id: 'client-2',
-    amount: 37500,
+    inspection_id: inspection.id,
+    client_id: inspection.client_id,
+    amount: total,
     tax_amount: 0,
-    total_amount: 37500,
-    status: 'pending',
-    due_date: null,
-    paid_date: null,
-    stripe_payment_intent_id: null,
+    total_amount: total,
+    status,
+    due_date: dateOnly(daysAgo(Math.max(dayOffset - 10, 0))),
+    paid_date: paidDate,
+    stripe_payment_intent_id: paid ? `pi_demo_${i + 1000}` : null,
     stripe_payment_link: null,
-    pass_card_fee: false,
-    notes: null,
-    created_at: '2026-03-02T14:00:00Z',
-    updated_at: '2026-03-02T14:00:00Z',
-    client: DEMO_CLIENTS[1],
-    inspection: DEMO_INSPECTIONS[1],
-  },
-  {
-    id: 'invoice-3',
-    user_id: DEMO_USER_ID,
-    inspection_id: 'inspection-3',
-    client_id: 'client-2',
-    amount: 37500,
-    tax_amount: 0,
-    total_amount: 37500,
-    status: 'paid',
-    due_date: null,
-    paid_date: '2026-02-20',
-    stripe_payment_intent_id: 'pi_demo_123',
-    stripe_payment_link: null,
-    pass_card_fee: false,
-    notes: null,
-    created_at: '2026-02-18T15:00:00Z',
-    updated_at: '2026-02-20T10:00:00Z',
-    client: DEMO_CLIENTS[1],
-    inspection: DEMO_INSPECTIONS[2],
-  },
-  {
-    id: 'invoice-4',
-    user_id: DEMO_USER_ID,
-    inspection_id: 'inspection-4',
-    client_id: 'client-3',
-    amount: 32500,
-    tax_amount: 0,
-    total_amount: 32500,
-    status: 'paid',
-    due_date: null,
-    paid_date: '2026-02-07',
-    stripe_payment_intent_id: 'pi_demo_456',
-    stripe_payment_link: null,
-    pass_card_fee: false,
-    notes: null,
-    created_at: '2026-02-05T13:00:00Z',
-    updated_at: '2026-02-07T09:00:00Z',
-    client: DEMO_CLIENTS[2],
-    inspection: DEMO_INSPECTIONS[3],
-  },
-]
+    pass_card_fee: i % 4 === 0,
+    notes: overdue ? 'Second reminder sent; payment expected this week.' : null,
+    created_at: daysAgo(dayOffset + 3).toISOString(),
+    updated_at: daysAgo(Math.max(dayOffset - 1, 0)).toISOString(),
+    client: inspection.client,
+    inspection,
+  }
+})
+
+function buildItems(prefix: string, names: string[]): ReportTemplate['sections'][number]['items'] {
+  return names.map((name, idx) => ({
+    id: `${prefix}-${idx + 1}`,
+    name,
+    condition: (['good', 'fair', 'good', 'poor', 'good', 'fair'][idx % 6] as ReportTemplate['sections'][number]['items'][number]['condition']),
+    recommendation: (['none', 'monitor', 'repair', 'none', 'replace', 'none'][idx % 6] as ReportTemplate['sections'][number]['items'][number]['recommendation']),
+    comment: idx % 2 === 0
+      ? `${name} evaluated with normal wear expected for age; continue routine maintenance.`
+      : `${name} shows issues requiring contractor follow-up within 6-12 months.`,
+    photo_urls: [`https://picsum.photos/seed/report-${prefix}-${idx}/1200/800`],
+  }))
+}
 
 export const DEMO_REPORT_TEMPLATES: ReportTemplate[] = [
   {
     id: 'template-1',
     user_id: DEMO_USER_ID,
-    name: 'Standard Home Inspection Report',
-    description: 'Full residential inspection covering all major systems and components.',
-    created_at: '2025-09-01T08:00:00Z',
-    updated_at: '2026-03-01T08:00:00Z',
+    name: 'Residential Full Inspection Template',
+    description: 'Standard company template for buyer and seller inspections.',
+    created_at: daysAgo(88).toISOString(),
+    updated_at: daysAgo(2).toISOString(),
     sections: [
-      {
-        id: 'sec-roof',
-        name: 'Roof',
-        items: [
-          { id: 'r1', name: 'Roof Covering / Shingles', condition: 'fair', recommendation: 'monitor', comment: 'Minor granule loss on south-facing slopes. Estimated 5–7 years of remaining life.', photo_urls: [] },
-          { id: 'r2', name: 'Flashings', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'r3', name: 'Gutters & Downspouts', condition: 'fair', recommendation: 'monitor', comment: 'Debris accumulation noted. Recommend cleaning before fall season.', photo_urls: [] },
-          { id: 'r4', name: 'Skylights', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'r5', name: 'Chimney', condition: 'poor', recommendation: 'repair', comment: 'Mortar joints are cracked and deteriorating. Crown has visible cracks. Recommend tuckpointing and crown repair before winter.', photo_urls: [] },
-          { id: 'r6', name: 'Roof Structure / Decking', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-        ],
-      },
-      {
-        id: 'sec-exterior',
-        name: 'Exterior',
-        items: [
-          { id: 'e1', name: 'Siding / Cladding', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'e2', name: 'Trim & Fascia', condition: 'fair', recommendation: 'monitor', comment: 'Minor paint peeling on north side fascia board.', photo_urls: [] },
-          { id: 'e3', name: 'Windows (Exterior)', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'e4', name: 'Exterior Doors', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'e5', name: 'Garage Door & Opener', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'e6', name: 'Driveway & Walkways', condition: 'fair', recommendation: 'monitor', comment: 'Driveway shows minor cracking typical of age.', photo_urls: [] },
-          { id: 'e7', name: 'Grading & Drainage', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'e8', name: 'Deck / Patio / Porch', condition: 'poor', recommendation: 'repair', comment: 'Several deck boards are soft and showing signs of rot. Ledger board connection should be evaluated by a licensed contractor.', photo_urls: [] },
-        ],
-      },
-      {
-        id: 'sec-foundation',
-        name: 'Foundation & Structure',
-        items: [
-          { id: 'f1', name: 'Foundation Walls', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'f2', name: 'Basement / Crawlspace', condition: 'fair', recommendation: 'monitor', comment: 'Minor efflorescence on lower east wall indicating past moisture intrusion. Currently dry.', photo_urls: [] },
-          { id: 'f3', name: 'Structural Framing', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'f4', name: 'Floor Structure', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'f5', name: 'Wall Structure', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-        ],
-      },
-      {
-        id: 'sec-electrical',
-        name: 'Electrical',
-        items: [
-          { id: 'el1', name: 'Main Service Panel', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'el2', name: 'Branch Circuit Wiring', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'el3', name: 'Outlets & Switches', condition: 'fair', recommendation: 'repair', comment: 'Three outlets in the garage are ungrounded (2-prong). Recommend upgrading to grounded outlets.', photo_urls: [] },
-          { id: 'el4', name: 'GFCI Protection', condition: 'poor', recommendation: 'safety_hazard', comment: 'GFCI outlets absent at kitchen countertop areas. Required by current code. Recommend immediate installation.', photo_urls: [] },
-          { id: 'el5', name: 'AFCI Protection', condition: 'not_inspected', recommendation: 'none', comment: 'Panel does not have AFCI breakers. Not required by original code at time of construction but recommended.', photo_urls: [] },
-          { id: 'el6', name: 'Smoke & CO Detectors', condition: 'fair', recommendation: 'repair', comment: 'CO detector absent in utility room adjacent to gas appliances. Recommend adding.', photo_urls: [] },
-          { id: 'el7', name: 'Exterior Lighting', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-        ],
-      },
-      {
-        id: 'sec-plumbing',
-        name: 'Plumbing',
-        items: [
-          { id: 'p1', name: 'Water Supply Lines', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'p2', name: 'Drain / Waste / Vent', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'p3', name: 'Water Heater', condition: 'fair', recommendation: 'monitor', comment: 'Water heater is 9 years old (avg. lifespan 10–12 years). TPR valve last tested unknown. Recommend annual servicing.', photo_urls: [] },
-          { id: 'p4', name: 'Fixtures & Faucets', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'p5', name: 'Toilets', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'p6', name: 'Sump Pump', condition: 'not_inspected', recommendation: 'none', comment: 'Sump pump not present. Basement does not appear to have active drainage issues.', photo_urls: [] },
-          { id: 'p7', name: 'Main Water Shutoff', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-        ],
-      },
-      {
-        id: 'sec-hvac',
-        name: 'HVAC',
-        items: [
-          { id: 'h1', name: 'Heating System / Furnace', condition: 'fair', recommendation: 'repair', comment: 'Furnace is 14 years old. Filter heavily clogged. Recommend professional cleaning and filter replacement.', photo_urls: [] },
-          { id: 'h2', name: 'Cooling System / A/C', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'h3', name: 'Ductwork & Distribution', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'h4', name: 'Air Filters', condition: 'poor', recommendation: 'repair', comment: 'Filter is heavily clogged. Replace immediately to prevent HVAC damage.', photo_urls: [] },
-          { id: 'h5', name: 'Thermostat', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'h6', name: 'Fireplace / Wood Stove', condition: 'not_inspected', recommendation: 'none', comment: 'Gas fireplace not operational during inspection. Recommend professional evaluation before use.', photo_urls: [] },
-        ],
-      },
-      {
-        id: 'sec-attic',
-        name: 'Attic',
-        items: [
-          { id: 'a1', name: 'Attic Access', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'a2', name: 'Insulation', condition: 'fair', recommendation: 'monitor', comment: 'Insulation depth approx. R-19. Current standard is R-49 for this climate zone. Additional insulation recommended.', photo_urls: [] },
-          { id: 'a3', name: 'Ventilation', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'a4', name: 'Framing / Rafters', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'a5', name: 'Evidence of Moisture / Staining', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-        ],
-      },
-      {
-        id: 'sec-interior',
-        name: 'Interior',
-        items: [
-          { id: 'i1', name: 'Walls & Ceilings', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'i2', name: 'Floors', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'i3', name: 'Interior Doors', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'i4', name: 'Interior Windows', condition: 'fair', recommendation: 'repair', comment: 'Two bedroom windows show failed seals (fogging between panes). Recommend replacement of affected IGUs.', photo_urls: [] },
-          { id: 'i5', name: 'Stairs & Railings', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-        ],
-      },
-      {
-        id: 'sec-kitchen',
-        name: 'Kitchen',
-        items: [
-          { id: 'k1', name: 'Cabinets & Drawers', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'k2', name: 'Countertops', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'k3', name: 'Sink & Faucet', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'k4', name: 'Dishwasher', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'k5', name: 'Range / Cooktop', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'k6', name: 'Oven', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'k7', name: 'Exhaust Fan / Range Hood', condition: 'fair', recommendation: 'monitor', comment: 'Exhaust fan recirculates rather than venting to exterior. Recommend upgrading to ducted exhaust.', photo_urls: [] },
-          { id: 'k8', name: 'Refrigerator', condition: 'not_inspected', recommendation: 'none', comment: "Refrigerator is owner's personal property and was not inspected.", photo_urls: [] },
-        ],
-      },
-      {
-        id: 'sec-bathrooms',
-        name: 'Bathrooms',
-        items: [
-          { id: 'b1', name: 'Toilet(s)', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'b2', name: 'Sink & Faucet', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'b3', name: 'Shower / Tub', condition: 'fair', recommendation: 'repair', comment: 'Caulk around master bath tub surround is cracked and shows mold growth. Recommend removing and replacing all caulk.', photo_urls: [] },
-          { id: 'b4', name: 'Tile, Grout & Caulking', condition: 'fair', recommendation: 'repair', comment: 'Grout missing in several spots in master shower. Reseal or replace to prevent water intrusion.', photo_urls: [] },
-          { id: 'b5', name: 'Exhaust Fan', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-          { id: 'b6', name: 'GFCI Outlets', condition: 'good', recommendation: 'none', comment: null, photo_urls: [] },
-        ],
-      },
+      { id: 'roof', name: 'Roof', items: buildItems('roof', ['Shingles', 'Flashings', 'Gutters', 'Chimney', 'Attic Ventilation']) },
+      { id: 'exterior', name: 'Exterior', items: buildItems('ext', ['Siding', 'Trim', 'Windows', 'Doors', 'Deck/Porch', 'Drainage']) },
+      { id: 'structure', name: 'Structure', items: buildItems('str', ['Foundation', 'Framing', 'Basement Moisture', 'Floor Joists']) },
+      { id: 'systems', name: 'Major Systems', items: buildItems('sys', ['Electrical Panel', 'HVAC', 'Plumbing Supply', 'Water Heater', 'Sump Pump']) },
+      { id: 'interior', name: 'Interior', items: buildItems('int', ['Kitchen', 'Bathrooms', 'Walls/Ceilings', 'Floors', 'Stairs/Railings']) },
+    ],
+  },
+  {
+    id: 'template-2',
+    user_id: DEMO_USER_ID,
+    name: 'Luxury Estate Inspection Template',
+    description: 'Expanded inspection template for high-value and large properties.',
+    created_at: daysAgo(70).toISOString(),
+    updated_at: daysAgo(5).toISOString(),
+    sections: [
+      { id: 'estate-exterior', name: 'Estate Exterior', items: buildItems('estate-ext', ['Masonry', 'Copper Roof', 'Pool Equipment', 'Irrigation', 'Retaining Walls']) },
+      { id: 'estate-interior', name: 'Estate Interior', items: buildItems('estate-int', ['Imported Flooring', 'Smart Home Hub', 'Wine Cellar', 'Home Theater', 'Sauna/Steam']) },
+      { id: 'estate-mechanical', name: 'Mechanical Systems', items: buildItems('estate-mech', ['Boiler Plant', 'Air Handlers', 'Generator', 'Backup Power Transfer', 'Water Treatment']) },
+    ],
+  },
+  {
+    id: 'template-3',
+    user_id: DEMO_USER_ID,
+    name: 'Townhome/Condo Template',
+    description: 'Fast-turn template optimized for urban attached units.',
+    created_at: daysAgo(65).toISOString(),
+    updated_at: daysAgo(4).toISOString(),
+    sections: [
+      { id: 'condo-outer', name: 'Common + Exterior Interfaces', items: buildItems('condo-out', ['Balcony', 'Common Hallway Door', 'Window Seals', 'Drain Connections']) },
+      { id: 'condo-inner', name: 'Interior Unit', items: buildItems('condo-in', ['Kitchen Appliances', 'Bathroom Venting', 'Electrical Safety', 'HVAC Closet']) },
+    ],
+  },
+  {
+    id: 'template-4',
+    user_id: DEMO_USER_ID,
+    name: '11-Month Warranty Template',
+    description: 'Builder warranty punch-list style inspection report.',
+    created_at: daysAgo(50).toISOString(),
+    updated_at: daysAgo(1).toISOString(),
+    sections: [
+      { id: 'warranty-structure', name: 'Structure + Envelope', items: buildItems('war-struct', ['Settlement Cracks', 'Roof/Flashing', 'Siding Fit', 'Window Operation']) },
+      { id: 'warranty-systems', name: 'Systems + Finishes', items: buildItems('war-sys', ['HVAC Performance', 'Plumbing Fixtures', 'Electrical Trim-out', 'Interior Finish Defects']) },
     ],
   },
 ]
 
-export const DEMO_CONTACT_LOGS: ContactLog[] = [
-  {
-    id: 'log-1',
-    user_id: DEMO_USER_ID,
-    client_id: 'client-1',
-    agent_id: null,
-    type: 'email',
-    notes: 'Sent booking confirmation email.',
-    created_at: '2026-03-01T10:05:00Z',
-  },
-  {
-    id: 'log-2',
-    user_id: DEMO_USER_ID,
-    client_id: 'client-1',
-    agent_id: null,
-    type: 'call',
-    notes: 'Called to confirm access and gate code. Client confirmed 9am arrival.',
-    created_at: '2026-03-04T14:00:00Z',
-  },
-  {
-    id: 'log-3',
-    user_id: DEMO_USER_ID,
-    client_id: 'client-2',
-    agent_id: null,
-    type: 'note',
-    notes: 'Client interested in radon test add-on for next inspection.',
-    created_at: '2026-02-22T11:00:00Z',
-  },
-]
+export const DEMO_CONTACT_LOGS: ContactLog[] = Array.from({ length: 260 }, (_, i) => ({
+  id: `log-${i + 1}`,
+  user_id: DEMO_USER_ID,
+  client_id: DEMO_CLIENTS[i % DEMO_CLIENTS.length].id,
+  agent_id: DEMO_AGENTS[i % DEMO_AGENTS.length].id,
+  type: (['call', 'email', 'sms', 'meeting', 'note'][i % 5] as ContactLog['type']),
+  notes: [
+    'Confirmed inspection window and lockbox access details.',
+    'Sent pre-inspection prep checklist and utility activation reminder.',
+    'Discussed major findings and contractor follow-up priorities.',
+    'Agent requested expedited report delivery for settlement deadline.',
+    'Client asked for add-on radon and sewer scope scheduling.',
+  ][i % 5],
+  created_at: daysAgo(i % 88).toISOString(),
+}))
+
+export const DEMO_ACTIVITY_EVENTS: DemoActivityEvent[] = Array.from({ length: 24 }, (_, i) => {
+  const inspection = DEMO_INSPECTIONS[i]
+  const invoice = DEMO_INVOICES[i]
+  const types: DemoActivityEvent['type'][] = ['inspection_booked', 'report_saved', 'invoice_paid', 'inspection_completed', 'client_added', 'agent_followup']
+  const type = types[i % types.length]
+  const descriptionMap: Record<DemoActivityEvent['type'], string> = {
+    inspection_booked: `Inspection booked at ${inspection.address}, ${inspection.city}.`,
+    report_saved: `Final report saved for ${inspection.address}.`,
+    invoice_paid: `Invoice ${invoice.id.toUpperCase()} paid by ${inspection.client?.first_name} ${inspection.client?.last_name}.`,
+    inspection_completed: `Inspection completed: ${inspection.address}.`,
+    client_added: `New client profile added: ${inspection.client?.first_name} ${inspection.client?.last_name}.`,
+    agent_followup: `Referral follow-up logged with ${inspection.agent?.first_name} ${inspection.agent?.last_name}.`,
+  }
+  return {
+    id: `evt-${i + 1}`,
+    type,
+    description: descriptionMap[type],
+    created_at: daysAgo(i % 12).toISOString(),
+  }
+})
