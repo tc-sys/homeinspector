@@ -307,4 +307,35 @@ cross join (
   )
 ) as rt(name, description, sections, days_created, days_updated);
 
+create temp table _demo_templates as
+select row_number() over (order by created_at, id) as rn, id
+from public.report_templates
+where user_id in (select user_id from _demo_target_user);
+
+with ordered_inspections as (
+  select row_number() over (order by created_at, id) as rn, id
+  from public.inspections
+  where user_id in (select user_id from _demo_target_user)
+)
+update public.inspections i
+set template_id = t.id
+from ordered_inspections oi
+join _demo_templates t on t.rn = ((oi.rn - 1) % 4) + 1
+where i.id = oi.id;
+
+insert into public.inspection_reports (id, inspection_id, template_id, status, answers, created_at, updated_at, finalized_at)
+select
+  uuid_generate_v4(),
+  i.id,
+  i.template_id,
+  case when i.status = 'completed' then 'finalized' else 'draft' end,
+  rt.sections,
+  i.created_at,
+  i.updated_at,
+  case when i.status = 'completed' then i.updated_at else null end
+from public.inspections i
+join public.report_templates rt on rt.id = i.template_id
+where i.user_id in (select user_id from _demo_target_user)
+  and i.status in ('completed', 'in_progress');
+
 commit;

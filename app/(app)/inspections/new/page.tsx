@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
-import type { Client, Agent, Service } from '@/types'
+import type { Client, Agent, Service, ReportTemplate } from '@/types'
 import { combineLocalDateTime, rangesOverlap, toISODateLocal } from '@/lib/utils'
 
 function NewInspectionForm() {
@@ -24,6 +24,7 @@ function NewInspectionForm() {
   const [clients, setClients] = useState<Client[]>([])
   const [agents, setAgents] = useState<Agent[]>([])
   const [services, setServices] = useState<Service[]>([])
+  const [templates, setTemplates] = useState<ReportTemplate[]>([])
   const [sendConfirmations, setSendConfirmations] = useState(true)
   const [form, setForm] = useState({
     address: '',
@@ -36,7 +37,8 @@ function NewInspectionForm() {
     client_id: searchParams.get('client') ?? '',
     agent_id: searchParams.get('agent') ?? '',
     service_id: '',
-    inspection_type: 'General Home Inspection',
+    template_id: '',
+    inspection_type: '',
     price: '',
     square_footage: '',
     year_built: '',
@@ -46,14 +48,20 @@ function NewInspectionForm() {
   useEffect(() => {
     async function loadData() {
       const { data: { user } } = await supabase.auth.getUser()
-      const [{ data: c }, { data: a }, { data: s }] = await Promise.all([
+      const [{ data: c }, { data: a }, { data: s }, { data: t }] = await Promise.all([
         supabase.from('clients').select('*').eq('user_id', user!.id).order('last_name'),
         supabase.from('agents').select('*').eq('user_id', user!.id).order('last_name'),
         supabase.from('services').select('*').eq('user_id', user!.id).eq('active', true).order('name'),
+        supabase.from('report_templates').select('*').eq('user_id', user!.id).order('updated_at', { ascending: false }),
       ])
       setClients(c ?? [])
       setAgents(a ?? [])
       setServices(s ?? [])
+      setTemplates((t ?? []) as ReportTemplate[])
+      if ((t?.length ?? 0) > 0) {
+        const defaultTemplate = t![0] as ReportTemplate
+        setForm(prev => ({ ...prev, template_id: defaultTemplate.id, inspection_type: defaultTemplate.name }))
+      }
     }
     loadData()
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -80,6 +88,9 @@ function NewInspectionForm() {
 
     try {
       const { data: { user } } = await supabase.auth.getUser()
+      if (!form.template_id) {
+        throw new Error('Please select an inspection template before booking.')
+      }
 
       // Check for conflicts
       const { data: conflicts } = await supabase
@@ -108,6 +119,7 @@ function NewInspectionForm() {
       }
 
       const priceInCents = Math.round(parseFloat(form.price || '0') * 100)
+      const selectedTemplate = templates.find(t => t.id === form.template_id)
 
       const { data: inspection, error: insertError } = await supabase
         .from('inspections')
@@ -123,7 +135,8 @@ function NewInspectionForm() {
           client_id: form.client_id || null,
           agent_id: form.agent_id || null,
           service_id: form.service_id || null,
-          inspection_type: form.inspection_type,
+          template_id: form.template_id || null,
+          inspection_type: selectedTemplate?.name ?? form.inspection_type || 'General Home Inspection',
           price: priceInCents,
           square_footage: form.square_footage ? parseInt(form.square_footage) : null,
           year_built: form.year_built ? parseInt(form.year_built) : null,
@@ -180,18 +193,6 @@ function NewInspectionForm() {
       setLoading(false)
     }
   }
-
-  const INSPECTION_TYPES = [
-    'General Home Inspection',
-    'Buyer Inspection',
-    'Pre-Listing Inspection',
-    'New Construction Inspection',
-    'Radon Testing',
-    'Mold Inspection',
-    'Pool/Spa Inspection',
-    'Commercial Inspection',
-    '11-Month Warranty Inspection',
-  ]
 
   return (
     <div className="p-8 max-w-3xl">
@@ -306,20 +307,28 @@ function NewInspectionForm() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="inspection_type">Inspection Type</Label>
+                  <Label htmlFor="inspection_type">Inspection Template</Label>
                   <Select
-                    value={form.inspection_type}
-                    onValueChange={v => setForm(f => ({ ...f, inspection_type: v }))}
+                    value={form.template_id}
+                    onValueChange={v => {
+                      const selected = templates.find(t => t.id === v)
+                      setForm(f => ({ ...f, template_id: v, inspection_type: selected?.name ?? f.inspection_type }))
+                    }}
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder={templates.length ? 'Select template' : 'Create a template first'} />
                     </SelectTrigger>
                     <SelectContent>
-                      {INSPECTION_TYPES.map(t => (
-                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      {templates.map(t => (
+                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {!templates.length && (
+                    <p className="text-xs text-amber-600">
+                      No templates found. Create one in Reports → Templates before scheduling inspections.
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="service">Service Package</Label>
@@ -440,7 +449,7 @@ function NewInspectionForm() {
             {error && <p className="text-sm text-red-600">{error}</p>}
 
             <div className="flex gap-3 pt-2">
-              <Button type="submit" disabled={loading}>
+              <Button type="submit" disabled={loading || !templates.length}>
                 {loading ? 'Booking...' : 'Book Inspection'}
               </Button>
               <Button asChild variant="outline">

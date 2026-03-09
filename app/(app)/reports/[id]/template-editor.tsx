@@ -65,18 +65,20 @@ function SortableItemRow({
   sectionId,
   onUpdate,
   onDelete,
+  showAnswerFields,
 }: {
   item: ReportItem
   sectionId: string
   onUpdate: (sectionId: string, itemId: string, updates: Partial<ReportItem>) => void
   onDelete: (sectionId: string, itemId: string) => void
+  showAnswerFields: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
 
   const cc = conditionConfig(item.condition)
   const rc = recConfig(item.recommendation)
-  const hasIssue = item.recommendation === 'repair' || item.recommendation === 'replace' || item.recommendation === 'safety_hazard' || item.condition === 'poor'
+  const hasIssue = showAnswerFields && (item.recommendation === 'repair' || item.recommendation === 'replace' || item.recommendation === 'safety_hazard' || item.condition === 'poor')
 
   return (
     <div
@@ -102,12 +104,12 @@ function SortableItemRow({
           <span className="text-sm text-gray-800 truncate flex-1">{item.name}</span>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {hasIssue && <AlertTriangle className="h-3.5 w-3.5 text-orange-500" />}
-            {cc && (
+            {showAnswerFields && cc && (
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cc.bg} ${cc.color}`}>
                 {cc.label}
               </span>
             )}
-            {rc && rc.value !== 'none' && (
+            {showAnswerFields && rc && rc.value !== 'none' && (
               <span className={`text-xs px-2 py-0.5 rounded-full ${rc.bg} ${rc.color}`}>
                 {rc.label}
               </span>
@@ -140,62 +142,66 @@ function SortableItemRow({
             />
           </div>
 
-          {/* Condition & Recommendation row */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Condition</label>
-              <div className="mt-1 flex flex-wrap gap-1.5">
-                {CONDITIONS.map(c => (
-                  <button
-                    key={c.value}
-                    onClick={() => onUpdate(sectionId, item.id, {
-                      condition: item.condition === c.value ? null : c.value,
-                    })}
-                    className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-all ${
-                      item.condition === c.value
-                        ? `${c.bg} ${c.color} border-current`
-                        : 'bg-white text-gray-400 border-gray-200 hover:border-gray-400'
-                    }`}
-                  >
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+          {showAnswerFields && (
+            <>
+              {/* Condition & Recommendation row */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Condition</label>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {CONDITIONS.map(c => (
+                      <button
+                        key={c.value}
+                        onClick={() => onUpdate(sectionId, item.id, {
+                          condition: item.condition === c.value ? null : c.value,
+                        })}
+                        className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-all ${
+                          item.condition === c.value
+                            ? `${c.bg} ${c.color} border-current`
+                            : 'bg-white text-gray-400 border-gray-200 hover:border-gray-400'
+                        }`}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            <div>
-              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Recommendation</label>
-              <div className="mt-1 flex flex-wrap gap-1.5">
-                {RECOMMENDATIONS.map(r => (
-                  <button
-                    key={r.value}
-                    onClick={() => onUpdate(sectionId, item.id, {
-                      recommendation: item.recommendation === r.value ? null : r.value,
-                    })}
-                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
-                      item.recommendation === r.value
-                        ? `${r.bg} ${r.color} border-current font-medium`
-                        : 'bg-white text-gray-400 border-gray-200 hover:border-gray-400'
-                    }`}
-                  >
-                    {r.label}
-                  </button>
-                ))}
+                <div>
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Recommendation</label>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {RECOMMENDATIONS.map(r => (
+                      <button
+                        key={r.value}
+                        onClick={() => onUpdate(sectionId, item.id, {
+                          recommendation: item.recommendation === r.value ? null : r.value,
+                        })}
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
+                          item.recommendation === r.value
+                            ? `${r.bg} ${r.color} border-current font-medium`
+                            : 'bg-white text-gray-400 border-gray-200 hover:border-gray-400'
+                        }`}
+                      >
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
-          {/* Comment */}
-          <div>
-            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Inspector Comment</label>
-            <textarea
-              value={item.comment ?? ''}
-              onChange={e => onUpdate(sectionId, item.id, { comment: e.target.value || null })}
-              rows={2}
-              placeholder="Add notes about this item..."
-              className="mt-1 w-full text-sm border border-gray-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white resize-none"
-            />
-          </div>
+              {/* Comment */}
+              <div>
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Inspector Comment</label>
+                <textarea
+                  value={item.comment ?? ''}
+                  onChange={e => onUpdate(sectionId, item.id, { comment: e.target.value || null })}
+                  rows={2}
+                  placeholder="Add notes about this item..."
+                  className="mt-1 w-full text-sm border border-gray-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white resize-none"
+                />
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -212,6 +218,7 @@ function SortableSectionCard({
   onSectionDelete,
   onSectionRename,
   onItemsReorder,
+  showAnswerFields,
 }: {
   section: ReportSection
   onItemUpdate: (sectionId: string, itemId: string, updates: Partial<ReportItem>) => void
@@ -220,6 +227,7 @@ function SortableSectionCard({
   onSectionDelete: (sectionId: string) => void
   onSectionRename: (sectionId: string, name: string) => void
   onItemsReorder: (sectionId: string, event: DragEndEvent) => void
+  showAnswerFields: boolean
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const [editingName, setEditingName] = useState(false)
@@ -277,7 +285,7 @@ function SortableSectionCard({
         )}
 
         <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
-          {issueCount > 0 && (
+          {showAnswerFields && issueCount > 0 && (
             <span className="text-xs px-2 py-0.5 bg-orange-50 text-orange-600 rounded-full border border-orange-200">
               {issueCount} issue{issueCount > 1 ? 's' : ''}
             </span>
@@ -311,6 +319,7 @@ function SortableSectionCard({
                   sectionId={section.id}
                   onUpdate={onItemUpdate}
                   onDelete={onItemDelete}
+                  showAnswerFields={showAnswerFields}
                 />
               ))}
             </SortableContext>
@@ -335,10 +344,14 @@ export function TemplateEditor({
   template,
   inspectionContext,
   profileContext,
+  mode = 'template',
+  reportStatus = 'draft',
 }: {
   template: ReportTemplate
   inspectionContext?: Inspection | null
   profileContext?: Partial<UserProfile> | null
+  mode?: 'template' | 'report'
+  reportStatus?: 'draft' | 'finalized'
 }) {
   const [sections, setSections] = useState<ReportSection[]>(template.sections)
   const [generatingPDF, setGeneratingPDF] = useState(false)
@@ -482,13 +495,35 @@ export function TemplateEditor({
     }
     setSaving(true)
     try {
-      await fetch(`/api/reports/${template.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sections,
-        }),
-      })
+      if (mode === 'template') {
+        const templateSections = sections.map(section => ({
+          ...section,
+          items: section.items.map(item => ({
+            ...item,
+            condition: null,
+            recommendation: null,
+            comment: null,
+            photo_urls: [],
+          })),
+        }))
+        await fetch(`/api/reports/${template.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sections: templateSections,
+          }),
+        })
+      } else if (inspectionContext?.id) {
+        await fetch(`/api/inspection-reports/${inspectionContext.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            template_id: template.id,
+            status: reportStatus,
+            answers: sections,
+          }),
+        })
+      }
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } finally {
@@ -510,15 +545,15 @@ export function TemplateEditor({
       {/* Top bar */}
       <div className="flex items-center justify-between px-8 py-4 border-b border-gray-200 bg-white sticky top-0 z-10">
         <div className="flex items-center gap-4">
-          <Link href="/reports" className="text-gray-400 hover:text-gray-600 transition-colors">
+          <Link href={mode === 'report' && inspectionContext?.id ? `/inspections/${inspectionContext.id}` : '/reports?tab=templates'} className="text-gray-400 hover:text-gray-600 transition-colors">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
             <h1 className="text-lg font-bold text-gray-900">{template.name}</h1>
             <p className="text-xs text-gray-400">
               {sections.length} sections · {totalItems} items
-              {assessed > 0 && ` · ${assessed} assessed`}
-              {totalIssues > 0 && (
+              {mode === 'report' && assessed > 0 && ` · ${assessed} assessed`}
+              {mode === 'report' && totalIssues > 0 && (
                 <span className="text-orange-500 font-medium"> · {totalIssues} issue{totalIssues > 1 ? 's' : ''}</span>
               )}
             </p>
@@ -533,18 +568,20 @@ export function TemplateEditor({
             disabled={saving}
             className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            {saving ? 'Saving...' : 'Save Template'}
+            {saving ? 'Saving...' : mode === 'template' ? 'Save Template' : 'Save Report'}
           </button>
-          <button
-            onClick={handleGeneratePDF}
-            disabled={generatingPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-60 transition-colors"
-          >
-            {generatingPDF
-              ? <Loader2 className="h-4 w-4 animate-spin" />
-              : <Download className="h-4 w-4" />}
-            Generate PDF
-          </button>
+          {mode === 'report' && (
+            <button
+              onClick={handleGeneratePDF}
+              disabled={generatingPDF}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-60 transition-colors"
+            >
+              {generatingPDF
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Download className="h-4 w-4" />}
+              Generate PDF
+            </button>
+          )}
         </div>
       </div>
 
@@ -553,7 +590,7 @@ export function TemplateEditor({
         <div className="max-w-3xl mx-auto space-y-4">
 
           {/* Issues banner */}
-          {totalIssues > 0 && (
+          {mode === 'report' && totalIssues > 0 && (
             <div className="flex items-center gap-3 px-4 py-3 bg-orange-50 border border-orange-200 rounded-lg">
               <AlertTriangle className="h-5 w-5 text-orange-500 flex-shrink-0" />
               <p className="text-sm text-orange-800">
@@ -582,6 +619,7 @@ export function TemplateEditor({
                   onSectionDelete={handleSectionDelete}
                   onSectionRename={handleSectionRename}
                   onItemsReorder={handleItemsReorder}
+                  showAnswerFields={mode === 'report'}
                 />
               ))}
             </SortableContext>

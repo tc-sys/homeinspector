@@ -106,6 +106,7 @@ create table if not exists public.inspections (
   client_id uuid references public.clients on delete set null,
   agent_id uuid references public.agents on delete set null,
   service_id uuid references public.services on delete set null,
+  template_id uuid,
   address text not null,
   city text not null default '',
   state text not null default '',
@@ -132,11 +133,13 @@ create index if not exists inspections_scheduled_date_idx on public.inspections(
 create index if not exists inspections_client_id_idx on public.inspections(client_id);
 create index if not exists inspections_agent_id_idx on public.inspections(agent_id);
 create index if not exists inspections_client_portal_token_idx on public.inspections(client_portal_token);
+create index if not exists inspections_template_id_idx on public.inspections(template_id);
 
 alter table public.user_profiles add column if not exists website text;
 alter table public.user_profiles add column if not exists inspector_photo_url text;
 alter table public.user_profiles add column if not exists default_cover_photo_url text;
 alter table public.inspections add column if not exists cover_photo_url text;
+alter table public.inspections add column if not exists template_id uuid;
 
 -- ============================================================
 -- REPORT TEMPLATES
@@ -152,6 +155,38 @@ create table if not exists public.report_templates (
 );
 
 create index if not exists report_templates_user_id_idx on public.report_templates(user_id);
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'inspections_template_id_fkey'
+  ) then
+    alter table public.inspections
+      add constraint inspections_template_id_fkey
+      foreign key (template_id)
+      references public.report_templates(id)
+      on delete set null;
+  end if;
+end $$;
+
+-- ============================================================
+-- INSPECTION REPORTS (COMPLETED/DRAFT ANSWERS)
+-- ============================================================
+create table if not exists public.inspection_reports (
+  id uuid default uuid_generate_v4() primary key,
+  inspection_id uuid references public.inspections on delete cascade not null unique,
+  template_id uuid references public.report_templates on delete set null not null,
+  status text not null default 'draft'
+    check (status in ('draft', 'finalized')),
+  answers jsonb not null default '[]'::jsonb,
+  created_at timestamptz default now() not null,
+  updated_at timestamptz default now() not null,
+  finalized_at timestamptz
+);
+
+create index if not exists inspection_reports_template_id_idx on public.inspection_reports(template_id);
 
 -- ============================================================
 -- INVOICES
@@ -266,6 +301,7 @@ alter table public.payments enable row level security;
 alter table public.calendar_events enable row level security;
 alter table public.contacts_log enable row level security;
 alter table public.report_templates enable row level security;
+alter table public.inspection_reports enable row level security;
 
 -- User profiles: users can only see/edit their own
 create policy "Users can view own profile" on public.user_profiles
@@ -300,6 +336,19 @@ create policy "Users can CRUD own invoices" on public.invoices
 -- Report templates: owned by user
 create policy "Users can CRUD own report templates" on public.report_templates
   for all using (auth.uid() = user_id);
+
+-- Inspection reports: owned through inspection owner
+create policy "Users can CRUD own inspection reports" on public.inspection_reports
+  for all using (
+    inspection_id in (
+      select id from public.inspections where user_id = auth.uid()
+    )
+  )
+  with check (
+    inspection_id in (
+      select id from public.inspections where user_id = auth.uid()
+    )
+  );
 
 -- Payments: visible to invoice owner
 create policy "Users can view own payments" on public.payments

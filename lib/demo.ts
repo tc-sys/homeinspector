@@ -6,6 +6,7 @@ import type {
   Invoice,
   ContactLog,
   ReportTemplate,
+  InspectionReport,
   DemoActivityEvent,
   DemoFirmProfile,
   DemoScenario,
@@ -185,6 +186,7 @@ export const DEMO_INSPECTIONS: Inspection[] = Array.from({ length: 96 }, (_, i) 
     client_id: client.id,
     agent_id: agent.id,
     service_id: service.id,
+    template_id: `template-${(i % 4) + 1}`,
     address: `${220 + (i * 19 % 9100)} ${street}`,
     city: area.city,
     state: area.state,
@@ -241,12 +243,10 @@ function buildItems(prefix: string, names: string[]): ReportTemplate['sections']
   return names.map((name, idx) => ({
     id: `${prefix}-${idx + 1}`,
     name,
-    condition: (['good', 'fair', 'good', 'poor', 'good', 'fair'][idx % 6] as ReportTemplate['sections'][number]['items'][number]['condition']),
-    recommendation: (['none', 'monitor', 'repair', 'none', 'replace', 'none'][idx % 6] as ReportTemplate['sections'][number]['items'][number]['recommendation']),
-    comment: idx % 2 === 0
-      ? `${name} evaluated with normal wear expected for age; continue routine maintenance.`
-      : `${name} shows issues requiring contractor follow-up within 6-12 months.`,
-    photo_urls: [`https://picsum.photos/seed/report-${prefix}-${idx}/1200/800`],
+    condition: null,
+    recommendation: null,
+    comment: null,
+    photo_urls: [],
   }))
 }
 
@@ -341,3 +341,44 @@ export const DEMO_ACTIVITY_EVENTS: DemoActivityEvent[] = Array.from({ length: 24
     created_at: daysAgo(i % 12).toISOString(),
   }
 })
+
+function hydrateReportAnswers(template: ReportTemplate, seed: number): ReportTemplate['sections'] {
+  const conditionCycle = ['good', 'fair', 'good', 'poor', 'not_inspected'] as const
+  const recommendationCycle = ['none', 'monitor', 'repair', 'replace', 'none'] as const
+  return template.sections.map((section, sectionIdx) => ({
+    ...section,
+    items: section.items.map((item, itemIdx) => {
+      const offset = seed + sectionIdx + itemIdx
+      const condition = conditionCycle[offset % conditionCycle.length]
+      const recommendation = recommendationCycle[offset % recommendationCycle.length]
+      return {
+        ...item,
+        condition,
+        recommendation,
+        comment: condition === 'poor'
+          ? `${item.name} requires licensed contractor repair before closing.`
+          : `${item.name} inspected and documented for current condition.`,
+        photo_urls: [`https://picsum.photos/seed/inspection-report-${seed}-${sectionIdx}-${itemIdx}/1200/800`],
+      }
+    }),
+  }))
+}
+
+export const DEMO_INSPECTION_REPORTS: InspectionReport[] = DEMO_INSPECTIONS
+  .filter(inspection => inspection.status === 'completed' || inspection.status === 'in_progress')
+  .slice(0, 72)
+  .map((inspection, idx) => {
+    const template = DEMO_REPORT_TEMPLATES.find(t => t.id === inspection.template_id) ?? DEMO_REPORT_TEMPLATES[0]
+    return {
+      id: `inspection-report-${idx + 1}`,
+      inspection_id: inspection.id,
+      template_id: template.id,
+      status: inspection.status === 'completed' ? 'finalized' : 'draft',
+      answers: hydrateReportAnswers(template, idx + 1),
+      created_at: inspection.created_at,
+      updated_at: inspection.updated_at,
+      finalized_at: inspection.status === 'completed' ? inspection.updated_at : null,
+      inspection,
+      template,
+    }
+  })

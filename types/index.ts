@@ -63,6 +63,7 @@ export interface Inspection {
   client_id: string | null
   agent_id: string | null
   service_id: string | null
+  template_id?: string | null
   address: string
   city: string
   state: string
@@ -182,6 +183,19 @@ export interface ReportTemplate {
   sections: ReportSection[]
   created_at: string
   updated_at: string
+}
+
+export interface InspectionReport {
+  id: string
+  inspection_id: string
+  template_id: string
+  status: 'draft' | 'finalized'
+  answers: ReportSection[]
+  created_at: string
+  updated_at: string
+  finalized_at: string | null
+  inspection?: Inspection
+  template?: ReportTemplate
 }
 
 export interface PublicBookingProfile {

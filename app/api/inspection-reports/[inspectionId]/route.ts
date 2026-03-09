@@ -18,19 +18,19 @@ const reportSectionSchema = z.object({
 })
 
 const payloadSchema = z.object({
-  name: z.string().trim().min(1).max(200).optional(),
-  description: z.string().max(2000).nullable().optional(),
-  sections: z.array(reportSectionSchema).max(100),
+  template_id: z.string().uuid(),
+  status: z.enum(['draft', 'finalized']).default('draft'),
+  answers: z.array(reportSectionSchema).max(100),
 })
 
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ inspectionId: string }> }
 ) {
-  const { id } = await params
+  const { inspectionId } = await params
   const parsed = payloadSchema.safeParse(await request.json())
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid report template payload' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid inspection report payload' }, { status: 400 })
   }
 
   const supabase = await createServerSupabaseClient()
@@ -39,24 +39,29 @@ export async function PATCH(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { error } = await supabase
-    .from('report_templates')
-    .update({
-      ...parsed.data,
-      sections: parsed.data.sections.map(section => ({
-        ...section,
-        items: section.items.map(item => ({
-          ...item,
-          condition: null,
-          recommendation: null,
-          comment: null,
-          photo_urls: [],
-        })),
-      })),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', id)
+  const { data: inspection } = await supabase
+    .from('inspections')
+    .select('id')
+    .eq('id', inspectionId)
     .eq('user_id', user.id)
+    .single()
+
+  if (!inspection) {
+    return NextResponse.json({ error: 'Inspection not found' }, { status: 404 })
+  }
+
+  const payload = parsed.data
+  const now = new Date().toISOString()
+  const { error } = await supabase
+    .from('inspection_reports')
+    .upsert({
+      inspection_id: inspectionId,
+      template_id: payload.template_id,
+      status: payload.status,
+      answers: payload.answers,
+      updated_at: now,
+      finalized_at: payload.status === 'finalized' ? now : null,
+    }, { onConflict: 'inspection_id' })
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })

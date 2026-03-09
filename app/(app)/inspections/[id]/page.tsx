@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { InspectionActions } from './inspection-actions'
 import type { Inspection, Invoice } from '@/types'
-import { isDemoMode, DEMO_INSPECTIONS, DEMO_INVOICES, DEMO_REPORT_TEMPLATES } from '@/lib/demo'
+import { isDemoMode, DEMO_INSPECTIONS, DEMO_INVOICES, DEMO_REPORT_TEMPLATES, DEMO_INSPECTION_REPORTS } from '@/lib/demo'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,16 +18,18 @@ export default async function InspectionDetailPage({ params }: { params: Promise
   let inspection: Inspection | null = null
   let invoice: Invoice | null = null
   let reportTemplateId: string | null = null
+  let reportStatus: 'draft' | 'finalized' | null = null
 
   if (isDemoMode()) {
     inspection = DEMO_INSPECTIONS.find(i => i.id === id) ?? null
     if (!inspection) notFound()
     invoice = DEMO_INVOICES.find(inv => inv.inspection_id === id) ?? null
-    reportTemplateId = DEMO_REPORT_TEMPLATES[0]?.id ?? null
+    reportTemplateId = inspection.template_id ?? DEMO_REPORT_TEMPLATES[0]?.id ?? null
+    reportStatus = DEMO_INSPECTION_REPORTS.find(r => r.inspection_id === id)?.status ?? null
   } else {
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
-    const [{ data }, { data: firstTemplate }] = await Promise.all([
+    const [{ data }, { data: firstTemplate }, { data: existingReport }] = await Promise.all([
       supabase
         .from('inspections')
         .select('*, client:clients(*), agent:agents(*), service:services(*), invoice:invoices(*)')
@@ -41,11 +43,17 @@ export default async function InspectionDetailPage({ params }: { params: Promise
         .order('updated_at', { ascending: false })
         .limit(1)
         .single(),
+      supabase
+        .from('inspection_reports')
+        .select('status')
+        .eq('inspection_id', id)
+        .single(),
     ])
     if (!data) notFound()
     inspection = data as Inspection
     invoice = Array.isArray(data.invoice) ? data.invoice[0] : data.invoice
-    reportTemplateId = firstTemplate?.id ?? null
+    reportTemplateId = inspection.template_id ?? firstTemplate?.id ?? null
+    reportStatus = existingReport?.status ?? null
   }
 
   return (
@@ -181,9 +189,9 @@ export default async function InspectionDetailPage({ params }: { params: Promise
           <InspectionActions inspection={inspection} invoice={invoice} />
 
           {!inspection.report_locked && reportTemplateId && (
-            <Button asChild variant="outline" className="w-full">
-              <Link href={`/reports/${reportTemplateId}?inspection=${inspection.id}`}>
-                Open Inspection Report
+            <Button asChild variant="outline" className="w-full border-[#bcae90] text-[#304239] hover:bg-[#f2ebdc]">
+              <Link href={`/reports/completed/${inspection.id}`}>
+                {reportStatus ? 'Continue Inspection Report' : 'Start Inspection Report'}
               </Link>
             </Button>
           )}
