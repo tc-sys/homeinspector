@@ -39,22 +39,29 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="flex flex-col w-64 min-h-screen bg-gray-900 text-white">
-      <div className="flex items-center gap-2 px-6 py-5 border-b border-gray-700">
-        <Home className="h-6 w-6 text-blue-400" />
-        <span className="text-lg font-bold">InspectPro</span>
+    <aside className="flex flex-col w-72 min-h-screen bg-[#1f3a2f] text-[#f4eee2] border-r border-[#3e5c4f]">
+      <div className="px-6 py-6 border-b border-[#3e5c4f]">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-[#2f5f4c] flex items-center justify-center">
+            <Home className="h-5 w-5 text-[#f4eee2]" />
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-[#d8cfbd]">Operations</p>
+            <span className="text-lg font-semibold">InspectPro</span>
+          </div>
+        </div>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-5 space-y-1.5">
         {navItems.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}
             className={cn(
-              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border',
               pathname.startsWith(href)
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                ? 'bg-[#d08a2d] text-[#1f2a24] border-[#e9b467]'
+                : 'text-[#e5dccd] border-transparent hover:bg-[#294c3e] hover:text-white'
             )}
           >
             <Icon className="h-5 w-5 flex-shrink-0" />
@@ -63,10 +70,10 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="px-3 py-4 border-t border-gray-700">
+      <div className="px-3 py-4 border-t border-[#3e5c4f]">
         <button
           onClick={handleSignOut}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors w-full"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#e5dccd] hover:bg-[#294c3e] hover:text-white transition-colors w-full"
         >
           <LogOut className="h-5 w-5" />
           Sign Out
