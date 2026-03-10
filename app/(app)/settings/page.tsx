@@ -150,7 +150,7 @@ export default function SettingsPage() {
     : `/book/${profile.booking_slug ?? ''}`
 
   return (
-    <div className="p-8 max-w-3xl space-y-6">
+    <div className="p-4 md:p-8 max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
         <p className="text-gray-500 mt-1">Manage your account and business settings</p>

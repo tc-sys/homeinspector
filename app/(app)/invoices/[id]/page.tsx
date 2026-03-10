@@ -34,7 +34,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   }
 
   return (
-    <div className="p-8 max-w-3xl space-y-6">
+    <div className="p-4 md:p-8 max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <Button asChild variant="ghost" size="sm">
           <Link href="/invoices">

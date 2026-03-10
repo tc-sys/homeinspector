@@ -44,7 +44,7 @@ export default async function InspectionsPage({
   }
 
   return (
-    <div className="p-8 space-y-6 animate-rise-in">
+    <div className="p-4 md:p-8 space-y-6 animate-rise-in">
       <div className="rounded-2xl border border-[#cfc5af] bg-[linear-gradient(130deg,#fffdf8_0%,#f3ecde_55%,#efe6d7_100%)] px-6 py-5">
         <div className="flex items-center justify-between">
           <div>

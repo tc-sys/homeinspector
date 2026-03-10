@@ -58,6 +58,14 @@ h4 {
   animation: rise-in 280ms ease-out both;
 }
 
+.ios-safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.ios-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
 /* FullCalendar overrides */
 .fc .fc-toolbar-title {
   font-size: 1.05rem;

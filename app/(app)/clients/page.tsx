@@ -47,7 +47,7 @@ export default async function ClientsPage({
 
 function ClientsUI({ clients, q }: { clients: Client[]; q?: string }) {
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 md:p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Clients</h1>

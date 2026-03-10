@@ -11,11 +11,6 @@ import {
   DEMO_INSPECTIONS,
   DEMO_INVOICES,
   DEMO_ACTIVITY_EVENTS,
-  DEMO_CLIENTS,
-  DEMO_AGENTS,
-  DEMO_FIRM_PROFILE,
-  getDemoScenario,
-  getDemoSource,
 } from '@/lib/demo'
 
 export const dynamic = 'force-dynamic'
@@ -46,15 +41,7 @@ export default async function DashboardPage() {
       recentInspections={recentInspections}
       completedLast30Days={completedLast30Days}
       overdueCount={overdueCount}
-      clientsCount={DEMO_CLIENTS.length}
-      agentsCount={DEMO_AGENTS.length}
       recentActivity={DEMO_ACTIVITY_EVENTS}
-      demoMeta={{
-        enabled: true,
-        scenario: getDemoScenario(),
-        source: getDemoSource(),
-        firmName: DEMO_FIRM_PROFILE.name,
-      }}
     />
   }
 
@@ -76,8 +63,6 @@ export default async function DashboardPage() {
     { data: recentRaw },
     { count: completedLast30Days },
     { count: overdueCount },
-    { count: clientsCount },
-    { count: agentsCount },
   ] = await Promise.all([
     supabase
       .from('inspections')
@@ -118,14 +103,6 @@ export default async function DashboardPage() {
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user!.id)
       .eq('status', 'overdue'),
-    supabase
-      .from('clients')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user!.id),
-    supabase
-      .from('agents')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user!.id),
   ])
 
   const revenueThisMonth = (monthInvoices ?? []).reduce(
@@ -140,10 +117,7 @@ export default async function DashboardPage() {
     recentInspections={(recentRaw ?? []) as Inspection[]}
     completedLast30Days={completedLast30Days ?? 0}
     overdueCount={overdueCount ?? 0}
-    clientsCount={clientsCount ?? 0}
-    agentsCount={agentsCount ?? 0}
     recentActivity={[]}
-    demoMeta={{ enabled: false, scenario: null, source: null, firmName: null }}
   />
 }
 
@@ -155,10 +129,7 @@ function DashboardUI({
   recentInspections,
   completedLast30Days,
   overdueCount,
-  clientsCount,
-  agentsCount,
   recentActivity,
-  demoMeta,
 }: {
   today: Date
   upcomingInspections: Inspection[]
@@ -167,32 +138,10 @@ function DashboardUI({
   recentInspections: Inspection[]
   completedLast30Days: number
   overdueCount: number
-  clientsCount: number
-  agentsCount: number
   recentActivity: Array<{ id: string; type: string; description: string; created_at: string }>
-  demoMeta: { enabled: boolean; scenario: string | null; source: string | null; firmName: string | null }
 }) {
   return (
-    <div className="p-8 space-y-8 animate-rise-in">
-      {demoMeta.enabled && (
-        <Card className="glass-card border-[#c7bea9] bg-[#f6f1e6]">
-          <CardContent className="pt-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-[#1f3a2f]">{demoMeta.firmName}</p>
-                <p className="text-sm text-[#405048]">
-                  Scenario: {demoMeta.scenario} | Source: {demoMeta.source}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge className="bg-[#e7decb] text-[#2c3f36] border-0">{clientsCount} clients</Badge>
-                <Badge className="bg-[#e7decb] text-[#2c3f36] border-0">{agentsCount} referral partners</Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
+    <div className="p-4 md:p-8 space-y-8 animate-rise-in">
       <div className="rounded-2xl border border-[#cfc5af] bg-[linear-gradient(130deg,#fffdf8_0%,#f3ecde_55%,#efe6d7_100%)] px-6 py-5">
         <div className="flex items-center justify-between gap-4">
           <div>

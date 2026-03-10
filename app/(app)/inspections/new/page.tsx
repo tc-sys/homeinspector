@@ -195,7 +195,7 @@ function NewInspectionForm() {
   }
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-4 md:p-8 max-w-3xl">
       <div className="mb-6">
         <Button asChild variant="ghost" size="sm">
           <Link href="/inspections">
@@ -465,7 +465,7 @@ function NewInspectionForm() {
 
 export default function NewInspectionPage() {
   return (
-    <Suspense fallback={<div className="p-8">Loading...</div>}>
+    <Suspense fallback={<div className="p-4 md:p-8">Loading...</div>}>
       <NewInspectionForm />
     </Suspense>
   )

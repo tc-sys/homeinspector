@@ -57,7 +57,7 @@ export default async function InspectionDetailPage({ params }: { params: Promise
   }
 
   return (
-    <div className="p-8 space-y-6 max-w-4xl">
+    <div className="p-4 md:p-8 space-y-6 max-w-4xl">
       <div className="flex items-center justify-between">
         <Button asChild variant="ghost" size="sm">
           <Link href="/inspections">

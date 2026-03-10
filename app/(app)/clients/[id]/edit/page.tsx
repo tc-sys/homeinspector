@@ -62,7 +62,7 @@ export default function EditClientPage() {
   }
 
   return (
-    <div className="p-8 max-w-2xl space-y-6">
+    <div className="p-4 md:p-8 max-w-2xl space-y-6">
       <Button asChild variant="ghost" size="sm">
         <Link href={`/clients/${params.id}`}>
           <ArrowLeft className="h-4 w-4 mr-2" />

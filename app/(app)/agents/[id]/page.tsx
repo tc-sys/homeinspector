@@ -36,7 +36,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
   const totalRevenue = inspections.reduce((sum, i) => sum + i.price, 0)
 
   return (
-    <div className="p-8 space-y-6 max-w-4xl">
+    <div className="p-4 md:p-8 space-y-6 max-w-4xl">
       <div className="flex items-center justify-between">
         <Button asChild variant="ghost" size="sm">
           <Link href="/agents">
