@@ -7,8 +7,9 @@ import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { InvoiceActions } from './invoice-actions'
-import type { Invoice } from '@/types'
-import { isDemoMode, DEMO_INVOICES } from '@/lib/demo'
+import type { Invoice, InspectionReport } from '@/types'
+import { isDemoMode, DEMO_INVOICES, DEMO_INSPECTION_REPORTS } from '@/lib/demo'
+import { WorkflowLifecycle } from '@/components/workflow-lifecycle'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,21 +17,30 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const { id } = await params
 
   let invoice: Invoice | null = null
+  let reportStatus: InspectionReport['status'] | null = null
 
   if (isDemoMode()) {
     invoice = DEMO_INVOICES.find(i => i.id === id) ?? null
     if (!invoice) notFound()
+    reportStatus = DEMO_INSPECTION_REPORTS.find(report => report.inspection_id === invoice.inspection_id)?.status ?? null
   } else {
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
     const { data } = await supabase
       .from('invoices')
-      .select('*, client:clients(*), inspection:inspections(address, city, state, zip, scheduled_date, scheduled_time, inspection_type)')
+      .select('*, client:clients(*), inspection:inspections(id, user_id, client_id, agent_id, service_id, template_id, address, city, state, zip, scheduled_date, scheduled_time, duration_minutes, status, inspection_type, notes, square_footage, year_built, price, report_locked, created_at, updated_at)')
       .eq('id', id)
       .eq('user_id', user!.id)
       .single()
     if (!data) notFound()
     invoice = data as Invoice
+
+    const { data: reportData } = await supabase
+      .from('inspection_reports')
+      .select('inspection_id, status')
+      .eq('inspection_id', invoice.inspection_id)
+      .single()
+    reportStatus = (reportData?.status as InspectionReport['status'] | undefined) ?? null
   }
 
   return (
@@ -113,6 +123,10 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           )}
         </CardContent>
       </Card>
+
+      {invoice.inspection && (
+        <WorkflowLifecycle inspection={invoice.inspection} invoice={invoice} reportStatus={reportStatus} compact />
+      )}
 
       <InvoiceActions invoice={invoice} />
     </div>

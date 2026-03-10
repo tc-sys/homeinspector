@@ -3,15 +3,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatDate, formatTime, statusColor, toISODateLocal } from '@/lib/utils'
-import { Calendar, DollarSign, ClipboardList, AlertCircle, Plus } from 'lucide-react'
+import { Calendar, DollarSign, ClipboardList, AlertCircle, Plus, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
-import type { Inspection } from '@/types'
+import type { Inspection, Invoice, InspectionReport } from '@/types'
 import {
   isDemoMode,
   DEMO_INSPECTIONS,
   DEMO_INVOICES,
   DEMO_ACTIVITY_EVENTS,
+  DEMO_INSPECTION_REPORTS,
 } from '@/lib/demo'
+import { getWorkflowSnapshot, getWorkflowSummary } from '@/lib/workflow'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,6 +34,29 @@ export default async function DashboardPage() {
       return diffMs >= 0 && diffMs <= 30 * 24 * 60 * 60 * 1000
     }).length
     const overdueCount = DEMO_INVOICES.filter(i => i.status === 'overdue').length
+    const invoicesByInspectionId = new Map(DEMO_INVOICES.map(invoice => [invoice.inspection_id, invoice] as const))
+    const reportStatusByInspectionId = new Map(DEMO_INSPECTION_REPORTS.map(report => [report.inspection_id, report.status] as const))
+    const workflowSnapshot = getWorkflowSnapshot({
+      inspections: DEMO_INSPECTIONS,
+      invoicesByInspectionId,
+      reportStatusByInspectionId,
+    })
+    const attentionJobs = DEMO_INSPECTIONS
+      .map(inspection => ({
+        inspection,
+        summary: getWorkflowSummary({
+          inspection,
+          invoice: invoicesByInspectionId.get(inspection.id) ?? null,
+          reportStatus: reportStatusByInspectionId.get(inspection.id) ?? null,
+        }),
+      }))
+      .filter(item => item.summary.nextAction)
+      .sort((a, b) => {
+        const priority = (value: ReturnType<typeof getWorkflowSummary>['currentStage']['status']) =>
+          value === 'blocked' ? 0 : value === 'current' ? 1 : 2
+        return priority(a.summary.currentStage.status) - priority(b.summary.currentStage.status)
+      })
+      .slice(0, 5)
 
     return <DashboardUI
       today={today}
@@ -42,6 +67,8 @@ export default async function DashboardPage() {
       completedLast30Days={completedLast30Days}
       overdueCount={overdueCount}
       recentActivity={DEMO_ACTIVITY_EVENTS}
+      workflowSnapshot={workflowSnapshot}
+      attentionJobs={attentionJobs}
     />
   }
 
@@ -63,6 +90,9 @@ export default async function DashboardPage() {
     { data: recentRaw },
     { count: completedLast30Days },
     { count: overdueCount },
+    { data: workflowInspectionsRaw },
+    { data: workflowInvoicesRaw },
+    { data: workflowReportsRaw },
   ] = await Promise.all([
     supabase
       .from('inspections')
@@ -103,11 +133,47 @@ export default async function DashboardPage() {
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user!.id)
       .eq('status', 'overdue'),
+    supabase
+      .from('inspections')
+      .select('id, user_id, client_id, agent_id, service_id, template_id, address, city, state, zip, scheduled_date, scheduled_time, duration_minutes, status, inspection_type, notes, square_footage, year_built, price, report_locked, created_at, updated_at')
+      .eq('user_id', user!.id),
+    supabase
+      .from('invoices')
+      .select('id, user_id, inspection_id, client_id, amount, tax_amount, total_amount, status, due_date, paid_date, stripe_payment_intent_id, stripe_payment_link, pass_card_fee, notes, created_at, updated_at')
+      .eq('user_id', user!.id),
+    supabase
+      .from('inspection_reports')
+      .select('inspection_id, status, updated_at'),
   ])
 
   const revenueThisMonth = (monthInvoices ?? []).reduce(
     (sum: number, inv: { total_amount: number }) => sum + inv.total_amount, 0
   )
+
+  const workflowInspections = (workflowInspectionsRaw ?? []) as Inspection[]
+  const workflowInvoices = (workflowInvoicesRaw ?? []) as Invoice[]
+  const workflowReports = (workflowReportsRaw ?? []) as Pick<InspectionReport, 'inspection_id' | 'status' | 'updated_at'>[]
+  const workflowSnapshot = getWorkflowSnapshot({
+    inspections: workflowInspections,
+    invoicesByInspectionId: new Map(workflowInvoices.map(invoice => [invoice.inspection_id, invoice] as const)),
+    reportStatusByInspectionId: new Map(workflowReports.map(report => [report.inspection_id, report.status] as const)),
+  })
+  const attentionJobs = workflowInspections
+    .map(inspection => ({
+      inspection,
+      summary: getWorkflowSummary({
+        inspection,
+        invoice: workflowInvoices.find(invoice => invoice.inspection_id === inspection.id) ?? null,
+        reportStatus: workflowReports.find(report => report.inspection_id === inspection.id)?.status ?? null,
+      }),
+    }))
+    .filter(item => item.summary.nextAction)
+    .sort((a, b) => {
+      const priority = (value: ReturnType<typeof getWorkflowSummary>['currentStage']['status']) =>
+        value === 'blocked' ? 0 : value === 'current' ? 1 : 2
+      return priority(a.summary.currentStage.status) - priority(b.summary.currentStage.status)
+    })
+    .slice(0, 5)
 
   return <DashboardUI
     today={today}
@@ -118,6 +184,8 @@ export default async function DashboardPage() {
     completedLast30Days={completedLast30Days ?? 0}
     overdueCount={overdueCount ?? 0}
     recentActivity={[]}
+    workflowSnapshot={workflowSnapshot}
+    attentionJobs={attentionJobs}
   />
 }
 
@@ -130,6 +198,8 @@ function DashboardUI({
   completedLast30Days,
   overdueCount,
   recentActivity,
+  workflowSnapshot,
+  attentionJobs,
 }: {
   today: Date
   upcomingInspections: Inspection[]
@@ -139,6 +209,8 @@ function DashboardUI({
   completedLast30Days: number
   overdueCount: number
   recentActivity: Array<{ id: string; type: string; description: string; created_at: string }>
+  workflowSnapshot: ReturnType<typeof getWorkflowSnapshot>
+  attentionJobs: Array<{ inspection: Inspection; summary: ReturnType<typeof getWorkflowSummary> }>
 }) {
   return (
     <div className="p-4 md:p-8 space-y-8 animate-rise-in">
@@ -232,6 +304,52 @@ function DashboardUI({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="glass-card lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Workflow Pipeline</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-5">
+              <PipelineStageCard label="Intake" count={workflowSnapshot.intake} tone="neutral" />
+              <PipelineStageCard label="Scoping" count={workflowSnapshot.scope} tone="amber" />
+              <PipelineStageCard label="Fieldwork" count={workflowSnapshot.fieldwork} tone="green" />
+              <PipelineStageCard label="Reporting" count={workflowSnapshot.report} tone="amber" />
+              <PipelineStageCard label="Handoff" count={workflowSnapshot.handoff} tone="green" />
+            </div>
+            <div className="rounded-2xl border border-[#e5d6be] bg-[#fff8ea] px-4 py-3 text-sm text-[#5e6050]">
+              <span className="font-semibold text-[#8b5a23]">{workflowSnapshot.blocked}</span> job{workflowSnapshot.blocked === 1 ? '' : 's'} currently blocked by overdue payment, missing setup, or cancelled workflow state.
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle>Needs Attention</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {!attentionJobs.length ? (
+              <p className="text-sm text-[#6d766f]">No active handoffs right now.</p>
+            ) : (
+              attentionJobs.map(({ inspection, summary }) => (
+                <Link
+                  key={inspection.id}
+                  href={summary.nextAction?.href ?? `/inspections/${inspection.id}`}
+                  className="block rounded-2xl border border-[#ddd3c0] bg-[#fffdf8] px-4 py-3 hover:border-[#bcae90] hover:bg-white"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold text-[#23352c]">{inspection.address}</div>
+                      <div className="mt-1 text-xs text-[#7a847d]">{summary.currentStage.label}</div>
+                      <div className="mt-2 text-sm text-[#59645c]">{summary.nextAction?.label}</div>
+                    </div>
+                    <ArrowRight className="h-4 w-4 flex-shrink-0 text-[#7a847d]" />
+                  </div>
+                </Link>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
         <Card className="glass-card">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Upcoming This Week</CardTitle>
@@ -338,6 +456,30 @@ function DashboardUI({
           </CardContent>
         </Card>
       </div>
+    </div>
+  )
+}
+
+function PipelineStageCard({
+  label,
+  count,
+  tone,
+}: {
+  label: string
+  count: number
+  tone: 'neutral' | 'amber' | 'green'
+}) {
+  const toneClass = {
+    neutral: 'border-[#ddd3c0] bg-white/80 text-[#334239]',
+    amber: 'border-[#e1c895] bg-[#fbf1dc] text-[#7f5720]',
+    green: 'border-[#bfd3c6] bg-[#eef5f0] text-[#2d5d48]',
+  }[tone]
+
+  return (
+    <div className={`rounded-2xl border px-4 py-4 ${toneClass}`}>
+      <div className="text-xs uppercase tracking-[0.16em] opacity-70">{label}</div>
+      <div className="mt-2 text-2xl font-semibold">{count}</div>
+      <div className="mt-1 text-xs opacity-80">jobs currently in stage</div>
     </div>
   )
 }

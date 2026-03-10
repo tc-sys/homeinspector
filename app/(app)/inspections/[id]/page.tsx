@@ -9,6 +9,7 @@ import { notFound } from 'next/navigation'
 import { InspectionActions } from './inspection-actions'
 import type { Inspection, Invoice } from '@/types'
 import { isDemoMode, DEMO_INSPECTIONS, DEMO_INVOICES, DEMO_REPORT_TEMPLATES, DEMO_INSPECTION_REPORTS } from '@/lib/demo'
+import { WorkflowLifecycle } from '@/components/workflow-lifecycle'
 
 export const dynamic = 'force-dynamic'
 
@@ -85,6 +86,8 @@ export default async function InspectionDetailPage({ params }: { params: Promise
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          <WorkflowLifecycle inspection={inspection} invoice={invoice} reportStatus={reportStatus} />
+
           <Card>
             <CardHeader><CardTitle>Inspection Details</CardTitle></CardHeader>
             <CardContent>

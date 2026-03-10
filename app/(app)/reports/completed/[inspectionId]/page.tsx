@@ -6,8 +6,9 @@ import {
   DEMO_INSPECTION_REPORTS,
   DEMO_INSPECTIONS,
   DEMO_REPORT_TEMPLATES,
+  DEMO_INVOICES,
 } from '@/lib/demo'
-import type { Inspection, ReportTemplate, UserProfile } from '@/types'
+import type { Inspection, ReportTemplate, UserProfile, Invoice } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,6 +23,7 @@ export default async function CompletedReportPage({
   let reportAnswers: ReportTemplate['sections'] | null = null
   let reportStatus: 'draft' | 'finalized' = 'draft'
   let profileContext: Partial<UserProfile> | null = null
+  let invoiceContext: Invoice | null = null
 
   if (isDemoMode()) {
     inspection = DEMO_INSPECTIONS.find(i => i.id === inspectionId) ?? null
@@ -30,6 +32,7 @@ export default async function CompletedReportPage({
     template = DEMO_REPORT_TEMPLATES.find(t => t.id === (inspection!.template_id ?? report?.template_id)) ?? DEMO_REPORT_TEMPLATES[0]
     reportAnswers = report?.answers ?? template.sections
     reportStatus = report?.status ?? 'draft'
+    invoiceContext = DEMO_INVOICES.find(invoice => invoice.inspection_id === inspectionId) ?? null
     profileContext = {
       company_name: 'Keystone Premier Home Contracting Group',
       full_name: 'Avery Thompson',
@@ -43,7 +46,7 @@ export default async function CompletedReportPage({
   } else {
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
-    const [{ data: inspectionData }, { data: profileData }] = await Promise.all([
+    const [{ data: inspectionData }, { data: profileData }, { data: invoiceData }] = await Promise.all([
       supabase
         .from('inspections')
         .select('*, client:clients(*)')
@@ -55,10 +58,17 @@ export default async function CompletedReportPage({
         .select('*')
         .eq('id', user!.id)
         .single(),
+      supabase
+        .from('invoices')
+        .select('*')
+        .eq('inspection_id', inspectionId)
+        .eq('user_id', user!.id)
+        .single(),
     ])
     if (!inspectionData) notFound()
     inspection = inspectionData as Inspection
     profileContext = profileData as Partial<UserProfile> | null
+    invoiceContext = (invoiceData as Invoice | null) ?? null
 
     const reportPromise = supabase
       .from('inspection_reports')
@@ -93,6 +103,7 @@ export default async function CompletedReportPage({
     <TemplateEditor
       template={{ ...template!, sections: reportAnswers ?? template!.sections }}
       inspectionContext={inspection}
+      invoiceContext={invoiceContext}
       profileContext={profileContext}
       mode="report"
       reportStatus={reportStatus}

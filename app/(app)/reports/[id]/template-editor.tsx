@@ -34,8 +34,9 @@ import {
   MicOff,
   Save,
 } from 'lucide-react'
-import type { ReportTemplate, ReportSection, ReportItem, ItemCondition, ItemRecommendation, Inspection, UserProfile } from '@/types'
+import type { ReportTemplate, ReportSection, ReportItem, ItemCondition, ItemRecommendation, Inspection, UserProfile, Invoice } from '@/types'
 import { isDemoMode } from '@/lib/demo'
+import { WorkflowLifecycle } from '@/components/workflow-lifecycle'
 
 type SpeechRecognitionInstance = {
   lang: string
@@ -493,12 +494,14 @@ function SortableSectionCard({
 export function TemplateEditor({
   template,
   inspectionContext,
+  invoiceContext,
   profileContext,
   mode = 'template',
   reportStatus = 'draft',
 }: {
   template: ReportTemplate
   inspectionContext?: Inspection | null
+  invoiceContext?: Invoice | null
   profileContext?: Partial<UserProfile> | null
   mode?: 'template' | 'report'
   reportStatus?: 'draft' | 'finalized'
@@ -819,6 +822,14 @@ export function TemplateEditor({
       {/* Editor body */}
       <div className="flex-1 overflow-auto px-3 pb-24 md:px-8 md:pb-8 pt-4 md:pt-8">
         <div className="max-w-3xl mx-auto space-y-4">
+          {mode === 'report' && inspectionContext && (
+            <WorkflowLifecycle
+              inspection={inspectionContext}
+              invoice={invoiceContext}
+              reportStatus={reportStatus}
+              compact
+            />
+          )}
 
           {/* Issues banner */}
           {mode === 'report' && totalIssues > 0 && (
