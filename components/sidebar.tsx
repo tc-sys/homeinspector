@@ -100,12 +100,31 @@ const mobileNavItems = [
 ]
 
 function isActivePath(pathname: string, href: string) {
-  if (href === '/dashboard') return pathname === '/dashboard'
-  return pathname === href || pathname.startsWith(`${href}/`)
+  const normalizedHref = href.split('?')[0]
+  if (normalizedHref === '/dashboard') return pathname === '/dashboard'
+  return pathname === normalizedHref || pathname.startsWith(`${normalizedHref}/`)
+}
+
+function getActiveSidebarKey(pathname: string) {
+  if (pathname === '/dashboard') return 'command'
+  if (pathname === '/clients' || pathname.startsWith('/clients/') || pathname === '/agents' || pathname.startsWith('/agents/')) {
+    return 'lead'
+  }
+  if (pathname === '/schedule') return 'schedule'
+  if (pathname === '/prep' || pathname === '/inspections/new') return 'prep'
+  if (pathname === '/inspections' || pathname.startsWith('/inspections/')) {
+    return pathname === '/inspections/new' ? 'prep' : 'inspect'
+  }
+  if (pathname === '/reports' || pathname.startsWith('/reports/')) return 'deliver'
+  if (pathname === '/invoices' || pathname.startsWith('/invoices/')) return 'collect'
+  if (pathname === '/workflow-studio') return 'studio'
+  if (pathname === '/settings' || pathname.startsWith('/settings/')) return 'settings'
+  return null
 }
 
 export function Sidebar() {
   const pathname = usePathname()
+  const activeSidebarKey = getActiveSidebarKey(pathname)
   const router = useRouter()
   const supabase = createClient()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -143,7 +162,7 @@ export function Sidebar() {
                 href={href}
                 className={cn(
                   'flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition-colors',
-                  isActivePath(pathname, href)
+                  activeSidebarKey === 'command'
                     ? 'bg-[#d08a2d] text-[#1f2a24] border-[#e9b467]'
                     : 'border-[#385446] text-[#efe6d8] hover:bg-[#294c3e] hover:text-white'
                 )}
@@ -157,7 +176,7 @@ export function Sidebar() {
           <div className="space-y-3">
             <div className="px-2 text-[11px] uppercase tracking-[0.18em] text-[#c7bea9]">Workflow</div>
             {workflowNav.map(({ href, label, icon: Icon, description, helperLinks }) => {
-              const active = isActivePath(pathname, href) || helperLinks?.some(link => isActivePath(pathname, link.href)) || false
+              const active = activeSidebarKey === label.toLowerCase()
               return (
                 <div
                   key={label}
@@ -192,7 +211,7 @@ export function Sidebar() {
                   {helperLinks && (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {helperLinks.map(link => {
-                        const helperActive = isActivePath(pathname, link.href)
+                        const helperActive = active && isActivePath(pathname, link.href)
                         return (
                           <Link
                             key={link.href + link.label}
@@ -227,7 +246,7 @@ export function Sidebar() {
                 href={href}
                 className={cn(
                   'flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition-colors',
-                  isActivePath(pathname, href)
+                  activeSidebarKey === label.toLowerCase()
                     ? 'bg-[#d08a2d] text-[#1f2a24] border-[#e9b467]'
                     : 'border-[#385446] text-[#efe6d8] hover:bg-[#294c3e] hover:text-white'
                 )}
@@ -289,7 +308,7 @@ export function Sidebar() {
                     href={href}
                     className={cn(
                       'flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition-colors',
-                      isActivePath(pathname, href)
+                      activeSidebarKey === 'command'
                         ? 'bg-[#d08a2d] text-[#1f2a24] border-[#e9b467]'
                         : 'border-[#385446] text-[#efe6d8] hover:bg-[#294c3e] hover:text-white'
                     )}
@@ -308,7 +327,7 @@ export function Sidebar() {
                     href={href}
                     className={cn(
                       'block rounded-2xl border px-4 py-3 transition-colors',
-                      isActivePath(pathname, href)
+                      activeSidebarKey === label.toLowerCase()
                         ? 'bg-[#d08a2d] text-[#1f2a24] border-[#e9b467]'
                         : 'border-[#385446] text-[#efe6d8] hover:bg-[#294c3e] hover:text-white'
                     )}
@@ -332,7 +351,7 @@ export function Sidebar() {
                     href={href}
                     className={cn(
                       'flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition-colors',
-                      isActivePath(pathname, href)
+                      activeSidebarKey === label.toLowerCase()
                         ? 'bg-[#d08a2d] text-[#1f2a24] border-[#e9b467]'
                         : 'border-[#385446] text-[#efe6d8] hover:bg-[#294c3e] hover:text-white'
                     )}
@@ -364,7 +383,9 @@ export function Sidebar() {
               href={href}
               className={cn(
                 'flex flex-col items-center justify-center gap-1 text-[11px] font-medium',
-                isActivePath(pathname, href) ? 'text-[#1f3a2f]' : 'text-[#6e776f]'
+                activeSidebarKey === label.toLowerCase() || (label === 'Command' && activeSidebarKey === 'command')
+                  ? 'text-[#1f3a2f]'
+                  : 'text-[#6e776f]'
               )}
             >
               <Icon className="h-4 w-4" />
