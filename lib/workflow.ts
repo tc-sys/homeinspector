@@ -30,6 +30,14 @@ export interface WorkflowSnapshot {
   blocked: number
 }
 
+function daysBetween(from: string | null | undefined) {
+  if (!from) return 0
+  const start = new Date(from)
+  if (Number.isNaN(start.getTime())) return 0
+  const diffMs = Date.now() - start.getTime()
+  return Math.max(0, Math.floor(diffMs / (24 * 60 * 60 * 1000)))
+}
+
 function buildStageStatus(
   inspection: Inspection,
   invoice: Invoice | null,
@@ -186,3 +194,29 @@ export function getWorkflowSnapshot(input: {
   })
 }
 
+export function getWorkflowStageAgeDays(input: {
+  inspection: Inspection
+  invoice?: Invoice | null
+  reportStatus?: InspectionReport['status'] | null
+  reportUpdatedAt?: string | null
+}): number {
+  const summary = getWorkflowSummary({
+    inspection: input.inspection,
+    invoice: input.invoice ?? null,
+    reportStatus: input.reportStatus ?? null,
+  })
+
+  switch (summary.currentStage.id) {
+    case 'intake':
+    case 'scope':
+      return daysBetween(input.inspection.updated_at ?? input.inspection.created_at)
+    case 'fieldwork':
+      return daysBetween(input.inspection.updated_at ?? `${input.inspection.scheduled_date}T12:00:00`)
+    case 'report':
+      return daysBetween(input.reportUpdatedAt ?? input.inspection.updated_at)
+    case 'handoff':
+      return daysBetween(input.invoice?.updated_at ?? input.invoice?.created_at ?? input.inspection.updated_at)
+    default:
+      return 0
+  }
+}

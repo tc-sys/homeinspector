@@ -75,6 +75,7 @@ export default async function InvoicesPage({
         eyebrow="Collect"
         title="Collect Command"
         description="Keep cash moving. Prioritize open invoices, overdue balances, and jobs that cannot be released until payment is resolved."
+        currentStage="collect"
       />
 
       <ActionQueueCard

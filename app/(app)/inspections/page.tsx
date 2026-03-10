@@ -78,6 +78,7 @@ export default async function InspectionsPage({
         eyebrow="Inspect"
         title="Inspect Command"
         description="This is the field execution surface. Keep live inspections moving and close out completed jobs that still need report work."
+        currentStage="inspect"
       />
 
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">

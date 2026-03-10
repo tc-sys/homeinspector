@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { ActionQueueCard, StageCounts, StageHeader } from '@/components/action-system'
+import { ActionQueueCard, StageHeader } from '@/components/action-system'
 import { buildActionStageSnapshot } from '@/lib/action-system'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -58,16 +58,8 @@ export default async function PrepPage() {
         eyebrow="Prep"
         title="Prep Command"
         description="Finish job setup before the inspector goes on site. This page highlights missing templates, missing service packages, and near-term jobs that need readiness review."
+        currentStage="prep"
       />
-
-      <StageCounts counts={[
-        { label: 'Needs Prep', value: snapshot.prep.length, tone: 'amber' },
-        { label: 'Lead', value: snapshot.lead.length },
-        { label: 'Scheduled', value: snapshot.schedule.length, tone: 'amber' },
-        { label: 'Inspecting', value: snapshot.inspect.length, tone: 'green' },
-        { label: 'Delivering', value: snapshot.deliver.length, tone: 'green' },
-        { label: 'Collecting', value: snapshot.collect.length, tone: 'red' },
-      ]} />
 
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
         <ActionQueueCard

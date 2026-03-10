@@ -74,6 +74,7 @@ export default async function ReportsPage({
         eyebrow="Deliver"
         title="Deliver Command"
         description="Push reports across the finish line. Finalize drafts, release ready reports, and keep client handoff moving."
+        currentStage="deliver"
       />
 
       <ActionQueueCard

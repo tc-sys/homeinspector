@@ -119,6 +119,7 @@ export default function SchedulePage() {
         eyebrow="Schedule"
         title="Schedule Command"
         description="Drive the dispatch board from here. Keep the next few days locked in, visible, and conflict-free."
+        currentStage="schedule"
       />
 
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import type { ActionStageItem } from '@/lib/action-system'
+import type { ActionStage, ActionStageItem } from '@/lib/action-system'
 
 function toneClass(tone: ActionStageItem['tone']) {
   switch (tone) {
@@ -20,16 +20,57 @@ export function StageHeader({
   eyebrow,
   title,
   description,
+  currentStage,
 }: {
   eyebrow: string
   title: string
   description: string
+  currentStage?: ActionStage | null
 }) {
   return (
     <div className="rounded-2xl border border-[#cfc5af] bg-[linear-gradient(130deg,#fffdf8_0%,#f3ecde_55%,#efe6d7_100%)] px-6 py-5">
       <p className="text-xs uppercase tracking-[0.18em] text-[#627066]">{eyebrow}</p>
       <h1 className="mt-2 text-4xl text-[#1e2f27]">{title}</h1>
       <p className="mt-2 max-w-2xl text-sm text-[#5b665f]">{description}</p>
+      <div className="mt-5">
+        <WorkflowStageBar currentStage={currentStage} />
+      </div>
+    </div>
+  )
+}
+
+const WORKFLOW_STAGES: Array<{ id: ActionStage; label: string; href: string }> = [
+  { id: 'lead', label: 'Lead', href: '/clients' },
+  { id: 'schedule', label: 'Schedule', href: '/schedule' },
+  { id: 'prep', label: 'Prep', href: '/prep' },
+  { id: 'inspect', label: 'Inspect', href: '/inspections' },
+  { id: 'deliver', label: 'Deliver', href: '/reports' },
+  { id: 'collect', label: 'Collect', href: '/invoices' },
+]
+
+export function WorkflowStageBar({
+  currentStage,
+}: {
+  currentStage?: ActionStage | null
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="text-[11px] uppercase tracking-[0.18em] text-[#7a847d]">Workflow</div>
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-6">
+        {WORKFLOW_STAGES.map(stage => (
+          <Link
+            key={stage.id}
+            href={stage.href}
+            className={`rounded-2xl border px-4 py-3 text-center text-sm font-medium transition-colors ${
+              currentStage === stage.id
+                ? 'border-[#d08a2d] bg-[#d08a2d] text-[#1f2a24]'
+                : 'border-[#d8cfbd] bg-white text-[#304239] hover:border-[#bcae90] hover:bg-[#fffaf1]'
+            }`}
+          >
+            {stage.label}
+          </Link>
+        ))}
+      </div>
     </div>
   )
 }
@@ -98,4 +139,3 @@ export function ActionQueueCard({
     </Card>
   )
 }
-

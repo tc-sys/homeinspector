@@ -7,7 +7,7 @@ import { Plus, Phone, Mail, Search } from 'lucide-react'
 import Link from 'next/link'
 import type { Client, Inspection, Invoice, InspectionReport } from '@/types'
 import { isDemoMode, DEMO_CLIENTS, DEMO_INSPECTIONS, DEMO_INVOICES, DEMO_INSPECTION_REPORTS } from '@/lib/demo'
-import { ActionQueueCard, StageCounts, StageHeader } from '@/components/action-system'
+import { ActionQueueCard, StageHeader } from '@/components/action-system'
 import { buildActionStageSnapshot } from '@/lib/action-system'
 
 export const dynamic = 'force-dynamic'
@@ -88,16 +88,8 @@ function ClientsUI({
         eyebrow="Lead"
         title="Lead Command"
         description="Work the top of funnel here. These clients exist in the network but have not been converted into scheduled jobs yet."
+        currentStage="lead"
       />
-
-      <StageCounts counts={[
-        { label: 'Lead', value: stageSnapshot.lead.length },
-        { label: 'Schedule', value: stageSnapshot.schedule.length, tone: 'amber' },
-        { label: 'Prep', value: stageSnapshot.prep.length, tone: 'amber' },
-        { label: 'Inspect', value: stageSnapshot.inspect.length, tone: 'green' },
-        { label: 'Deliver', value: stageSnapshot.deliver.length, tone: 'green' },
-        { label: 'Collect', value: stageSnapshot.collect.length, tone: 'red' },
-      ]} />
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <ActionQueueCard

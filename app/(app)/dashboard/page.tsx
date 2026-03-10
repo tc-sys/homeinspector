@@ -5,18 +5,16 @@ import { Button } from '@/components/ui/button'
 import { formatCurrency, formatDate, formatTime, statusColor, toISODateLocal } from '@/lib/utils'
 import { Calendar, DollarSign, ClipboardList, AlertCircle, Plus, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
-import type { Client, Inspection, Invoice, InspectionReport } from '@/types'
+import type { Inspection, Invoice, InspectionReport } from '@/types'
 import {
   isDemoMode,
-  DEMO_CLIENTS,
   DEMO_INSPECTIONS,
   DEMO_INVOICES,
   DEMO_ACTIVITY_EVENTS,
   DEMO_INSPECTION_REPORTS,
 } from '@/lib/demo'
-import { getWorkflowSnapshot, getWorkflowSummary } from '@/lib/workflow'
-import { buildActionStageSnapshot } from '@/lib/action-system'
-import { StageCounts } from '@/components/action-system'
+import { getWorkflowStageAgeDays, getWorkflowSummary } from '@/lib/workflow'
+import { WorkflowStageBar } from '@/components/action-system'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,34 +36,29 @@ export default async function DashboardPage() {
     }).length
     const overdueCount = DEMO_INVOICES.filter(i => i.status === 'overdue').length
     const invoicesByInspectionId = new Map(DEMO_INVOICES.map(invoice => [invoice.inspection_id, invoice] as const))
-    const reportStatusByInspectionId = new Map(DEMO_INSPECTION_REPORTS.map(report => [report.inspection_id, report.status] as const))
-    const workflowSnapshot = getWorkflowSnapshot({
-      inspections: DEMO_INSPECTIONS,
-      invoicesByInspectionId,
-      reportStatusByInspectionId,
-    })
-    const actionSnapshot = buildActionStageSnapshot({
-      clients: DEMO_CLIENTS,
-      inspections: DEMO_INSPECTIONS,
-      invoices: DEMO_INVOICES,
-      reports: DEMO_INSPECTION_REPORTS,
-    })
+    const reportByInspectionId = new Map(DEMO_INSPECTION_REPORTS.map(report => [report.inspection_id, report] as const))
     const attentionJobs = DEMO_INSPECTIONS
       .map(inspection => ({
         inspection,
         summary: getWorkflowSummary({
           inspection,
           invoice: invoicesByInspectionId.get(inspection.id) ?? null,
-          reportStatus: reportStatusByInspectionId.get(inspection.id) ?? null,
+          reportStatus: reportByInspectionId.get(inspection.id)?.status ?? null,
+        }),
+        daysInStage: getWorkflowStageAgeDays({
+          inspection,
+          invoice: invoicesByInspectionId.get(inspection.id) ?? null,
+          reportStatus: reportByInspectionId.get(inspection.id)?.status ?? null,
+          reportUpdatedAt: reportByInspectionId.get(inspection.id)?.updated_at ?? null,
         }),
       }))
       .filter(item => item.summary.nextAction)
       .sort((a, b) => {
         const priority = (value: ReturnType<typeof getWorkflowSummary>['currentStage']['status']) =>
           value === 'blocked' ? 0 : value === 'current' ? 1 : 2
-        return priority(a.summary.currentStage.status) - priority(b.summary.currentStage.status)
+        return priority(a.summary.currentStage.status) - priority(b.summary.currentStage.status) || b.daysInStage - a.daysInStage
       })
-      .slice(0, 5)
+      .slice(0, 8)
 
     return <DashboardUI
       today={today}
@@ -76,8 +69,6 @@ export default async function DashboardPage() {
       completedLast30Days={completedLast30Days}
       overdueCount={overdueCount}
       recentActivity={DEMO_ACTIVITY_EVENTS}
-      workflowSnapshot={workflowSnapshot}
-      actionSnapshot={actionSnapshot}
       attentionJobs={attentionJobs}
     />
   }
@@ -100,7 +91,6 @@ export default async function DashboardPage() {
     { data: recentRaw },
     { count: completedLast30Days },
     { count: overdueCount },
-    { data: clientsRaw },
     { data: workflowInspectionsRaw },
     { data: workflowInvoicesRaw },
     { data: workflowReportsRaw },
@@ -145,10 +135,6 @@ export default async function DashboardPage() {
       .eq('user_id', user!.id)
       .eq('status', 'overdue'),
     supabase
-      .from('clients')
-      .select('*')
-      .eq('user_id', user!.id),
-    supabase
       .from('inspections')
       .select('id, user_id, client_id, agent_id, service_id, template_id, address, city, state, zip, scheduled_date, scheduled_time, duration_minutes, status, inspection_type, notes, square_footage, year_built, price, report_locked, created_at, updated_at')
       .eq('user_id', user!.id),
@@ -168,33 +154,30 @@ export default async function DashboardPage() {
   const workflowInspections = (workflowInspectionsRaw ?? []) as Inspection[]
   const workflowInvoices = (workflowInvoicesRaw ?? []) as Invoice[]
   const workflowReports = (workflowReportsRaw ?? []) as Pick<InspectionReport, 'inspection_id' | 'status' | 'updated_at'>[]
-  const workflowSnapshot = getWorkflowSnapshot({
-    inspections: workflowInspections,
-    invoicesByInspectionId: new Map(workflowInvoices.map(invoice => [invoice.inspection_id, invoice] as const)),
-    reportStatusByInspectionId: new Map(workflowReports.map(report => [report.inspection_id, report.status] as const)),
-  })
-  const actionSnapshot = buildActionStageSnapshot({
-    clients: (clientsRaw ?? []) as Client[],
-    inspections: workflowInspections,
-    invoices: workflowInvoices,
-    reports: workflowReports,
-  })
+  const invoicesByInspectionId = new Map(workflowInvoices.map(invoice => [invoice.inspection_id, invoice] as const))
+  const reportByInspectionId = new Map(workflowReports.map(report => [report.inspection_id, report] as const))
   const attentionJobs = workflowInspections
     .map(inspection => ({
       inspection,
       summary: getWorkflowSummary({
         inspection,
-        invoice: workflowInvoices.find(invoice => invoice.inspection_id === inspection.id) ?? null,
-        reportStatus: workflowReports.find(report => report.inspection_id === inspection.id)?.status ?? null,
+        invoice: invoicesByInspectionId.get(inspection.id) ?? null,
+        reportStatus: reportByInspectionId.get(inspection.id)?.status ?? null,
+      }),
+      daysInStage: getWorkflowStageAgeDays({
+        inspection,
+        invoice: invoicesByInspectionId.get(inspection.id) ?? null,
+        reportStatus: reportByInspectionId.get(inspection.id)?.status ?? null,
+        reportUpdatedAt: reportByInspectionId.get(inspection.id)?.updated_at ?? null,
       }),
     }))
     .filter(item => item.summary.nextAction)
     .sort((a, b) => {
       const priority = (value: ReturnType<typeof getWorkflowSummary>['currentStage']['status']) =>
         value === 'blocked' ? 0 : value === 'current' ? 1 : 2
-      return priority(a.summary.currentStage.status) - priority(b.summary.currentStage.status)
+      return priority(a.summary.currentStage.status) - priority(b.summary.currentStage.status) || b.daysInStage - a.daysInStage
     })
-    .slice(0, 5)
+    .slice(0, 8)
 
   return <DashboardUI
     today={today}
@@ -205,8 +188,6 @@ export default async function DashboardPage() {
     completedLast30Days={completedLast30Days ?? 0}
     overdueCount={overdueCount ?? 0}
     recentActivity={[]}
-    workflowSnapshot={workflowSnapshot}
-    actionSnapshot={actionSnapshot}
     attentionJobs={attentionJobs}
   />
 }
@@ -220,8 +201,6 @@ function DashboardUI({
   completedLast30Days,
   overdueCount,
   recentActivity,
-  workflowSnapshot,
-  actionSnapshot,
   attentionJobs,
 }: {
   today: Date
@@ -232,9 +211,7 @@ function DashboardUI({
   completedLast30Days: number
   overdueCount: number
   recentActivity: Array<{ id: string; type: string; description: string; created_at: string }>
-  workflowSnapshot: ReturnType<typeof getWorkflowSnapshot>
-  actionSnapshot: ReturnType<typeof buildActionStageSnapshot>
-  attentionJobs: Array<{ inspection: Inspection; summary: ReturnType<typeof getWorkflowSummary> }>
+  attentionJobs: Array<{ inspection: Inspection; summary: ReturnType<typeof getWorkflowSummary>; daysInStage: number }>
 }) {
   return (
     <div className="p-4 md:p-8 space-y-8 animate-rise-in">
@@ -264,6 +241,9 @@ function DashboardUI({
           <span className="px-2.5 py-1 rounded-full bg-[#e8decc] text-[#33453c]">High-volume market</span>
           <span className="px-2.5 py-1 rounded-full bg-[#e8decc] text-[#33453c]">Multi-team dispatch</span>
           <span className="px-2.5 py-1 rounded-full bg-[#e8decc] text-[#33453c]">Active 90-day timeline</span>
+        </div>
+        <div className="mt-5">
+          <WorkflowStageBar currentStage={null} />
         </div>
       </div>
 
@@ -327,53 +307,35 @@ function DashboardUI({
         </Card>
       </div>
 
-      <StageCounts counts={[
-        { label: 'Lead', value: actionSnapshot.lead.length },
-        { label: 'Schedule', value: actionSnapshot.schedule.length, tone: 'amber' },
-        { label: 'Prep', value: actionSnapshot.prep.length, tone: 'amber' },
-        { label: 'Inspect', value: actionSnapshot.inspect.length, tone: 'green' },
-        { label: 'Deliver', value: actionSnapshot.deliver.length, tone: 'green' },
-        { label: 'Collect', value: actionSnapshot.collect.length, tone: 'red' },
-      ]} />
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="glass-card lg:col-span-2">
           <CardHeader>
-            <CardTitle>Workflow Pipeline</CardTitle>
+            <CardTitle>Needs Attention</CardTitle>
+            <p className="text-sm text-[#647067]">Jobs that are aging in a stage or waiting on the next operational move.</p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-5">
-              <PipelineStageCard label="Intake" count={workflowSnapshot.intake} tone="neutral" />
-              <PipelineStageCard label="Scoping" count={workflowSnapshot.scope} tone="amber" />
-              <PipelineStageCard label="Fieldwork" count={workflowSnapshot.fieldwork} tone="green" />
-              <PipelineStageCard label="Reporting" count={workflowSnapshot.report} tone="amber" />
-              <PipelineStageCard label="Handoff" count={workflowSnapshot.handoff} tone="green" />
-            </div>
-            <div className="rounded-2xl border border-[#e5d6be] bg-[#fff8ea] px-4 py-3 text-sm text-[#5e6050]">
-              <span className="font-semibold text-[#8b5a23]">{workflowSnapshot.blocked}</span> job{workflowSnapshot.blocked === 1 ? '' : 's'} currently blocked by overdue payment, missing setup, or cancelled workflow state.
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle>Needs Attention</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
             {!attentionJobs.length ? (
               <p className="text-sm text-[#6d766f]">No active handoffs right now.</p>
             ) : (
-              attentionJobs.map(({ inspection, summary }) => (
+              attentionJobs.map(({ inspection, summary, daysInStage }) => (
                 <Link
                   key={inspection.id}
                   href={summary.nextAction?.href ?? `/inspections/${inspection.id}`}
-                  className="block rounded-2xl border border-[#ddd3c0] bg-[#fffdf8] px-4 py-3 hover:border-[#bcae90] hover:bg-white"
+                  className="block rounded-2xl border border-[#ddd3c0] bg-[#fffdf8] px-5 py-4 hover:border-[#bcae90] hover:bg-white"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-[#23352c]">{inspection.address}</div>
-                      <div className="mt-1 text-xs text-[#7a847d]">{summary.currentStage.label}</div>
-                      <div className="mt-2 text-sm text-[#59645c]">{summary.nextAction?.label}</div>
+                      <div className="truncate text-base font-semibold text-[#23352c]">{inspection.address}</div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                        <span className="rounded-full border border-[#d8cfbd] bg-white px-2.5 py-1 text-[#425147]">
+                          {summary.currentStage.label}
+                        </span>
+                        <span className="rounded-full border border-[#d8cfbd] bg-[#f7f0e2] px-2.5 py-1 text-[#7f5720]">
+                          {daysInStage} day{daysInStage === 1 ? '' : 's'} in stage
+                        </span>
+                      </div>
+                      <div className="mt-3 text-sm text-[#59645c]">{summary.nextAction?.label}</div>
+                      <div className="mt-1 text-sm text-[#7a847d]">{summary.nextAction?.description}</div>
                     </div>
                     <ArrowRight className="h-4 w-4 flex-shrink-0 text-[#7a847d]" />
                   </div>
@@ -489,30 +451,6 @@ function DashboardUI({
           </CardContent>
         </Card>
       </div>
-    </div>
-  )
-}
-
-function PipelineStageCard({
-  label,
-  count,
-  tone,
-}: {
-  label: string
-  count: number
-  tone: 'neutral' | 'amber' | 'green'
-}) {
-  const toneClass = {
-    neutral: 'border-[#ddd3c0] bg-white/80 text-[#334239]',
-    amber: 'border-[#e1c895] bg-[#fbf1dc] text-[#7f5720]',
-    green: 'border-[#bfd3c6] bg-[#eef5f0] text-[#2d5d48]',
-  }[tone]
-
-  return (
-    <div className={`rounded-2xl border px-4 py-4 ${toneClass}`}>
-      <div className="text-xs uppercase tracking-[0.16em] opacity-70">{label}</div>
-      <div className="mt-2 text-2xl font-semibold">{count}</div>
-      <div className="mt-1 text-xs opacity-80">jobs currently in stage</div>
     </div>
   )
 }
