@@ -456,7 +456,7 @@ export function TemplateEditor({
       const docElement = createElement(ReportDocument, {
         template: { ...template, sections },
         branding: {
-          companyName: profileContext?.company_name ?? 'Professional Home Inspections LLC',
+          companyName: profileContext?.company_name ?? 'Specthub',
           phone: profileContext?.phone ?? null,
           email: profileContext?.email ?? null,
           website: profileContext?.website ?? null,

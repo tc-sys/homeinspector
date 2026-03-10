@@ -1,5 +1,5 @@
 -- ============================================================
--- InspectPro Database Schema
+-- Specthub Database Schema
 -- Run this in Supabase SQL Editor to create all tables
 -- ============================================================
 

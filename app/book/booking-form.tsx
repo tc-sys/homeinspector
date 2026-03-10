@@ -121,7 +121,7 @@ export function BookingForm({ slug }: { slug: string }) {
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-center gap-2 mb-8">
           <Home className="h-8 w-8 text-blue-600" />
-          <span className="text-2xl font-bold text-gray-900">{profile?.company_name || 'InspectPro'}</span>
+          <span className="text-2xl font-bold text-gray-900">{profile?.company_name || 'Specthub'}</span>
         </div>
 
         <Card>

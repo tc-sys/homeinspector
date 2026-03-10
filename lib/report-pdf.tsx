@@ -366,7 +366,7 @@ export interface ReportDocumentProps {
 
 export function ReportDocument({ template, branding, inspectionMeta }: ReportDocumentProps) {
   const issues = getIssueItems(template.sections)
-  const companyName = branding.companyName ?? 'Professional Home Inspections LLC'
+  const companyName = branding.companyName ?? 'Specthub'
   const inspectionType = inspectionMeta.inspectionType ?? 'Residential Property Inspection'
   const inspectionAddress = inspectionMeta.inspectionAddress ?? 'Property Address'
   const inspectionDate = formatDateDisplay(inspectionMeta.inspectionDate)

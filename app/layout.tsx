@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'InspectPro — Home Inspection Management',
-  description: 'Manage your home inspection business with ease',
+  title: 'Specthub — Inspection Operations Platform',
+  description: 'Manage inspection operations, scheduling, reports, and billing in one platform.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

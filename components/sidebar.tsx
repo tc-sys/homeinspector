@@ -47,7 +47,7 @@ export function Sidebar() {
           </div>
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-[#d8cfbd]">Operations</p>
-            <span className="text-lg font-semibold">InspectPro</span>
+            <span className="text-lg font-semibold">Specthub</span>
           </div>
         </div>
       </div>
