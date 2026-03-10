@@ -5,8 +5,10 @@ import { Badge } from '@/components/ui/badge'
 import { getInitials, formatDate } from '@/lib/utils'
 import { Plus, Phone, Mail, Search } from 'lucide-react'
 import Link from 'next/link'
-import type { Client } from '@/types'
-import { isDemoMode, DEMO_CLIENTS } from '@/lib/demo'
+import type { Client, Inspection, Invoice, InspectionReport } from '@/types'
+import { isDemoMode, DEMO_CLIENTS, DEMO_INSPECTIONS, DEMO_INVOICES, DEMO_INSPECTION_REPORTS } from '@/lib/demo'
+import { ActionQueueCard, StageCounts, StageHeader } from '@/components/action-system'
+import { buildActionStageSnapshot } from '@/lib/action-system'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,7 +26,13 @@ export default async function ClientsPage({
           `${c.first_name} ${c.last_name} ${c.email}`.toLowerCase().includes(q)
         )
       : DEMO_CLIENTS
-    return <ClientsUI clients={clients} q={params.q} />
+    const stageSnapshot = buildActionStageSnapshot({
+      clients: DEMO_CLIENTS,
+      inspections: DEMO_INSPECTIONS,
+      invoices: DEMO_INVOICES,
+      reports: DEMO_INSPECTION_REPORTS,
+    })
+    return <ClientsUI clients={clients} q={params.q} stageSnapshot={stageSnapshot} />
   }
 
   const supabase = await createServerSupabaseClient()
@@ -40,25 +48,83 @@ export default async function ClientsPage({
     query = query.or(`first_name.ilike.%${params.q}%,last_name.ilike.%${params.q}%,email.ilike.%${params.q}%`)
   }
 
-  const { data: clients } = await query
+  const [{ data: clients }, { data: inspections }, { data: invoices }, { data: reports }] = await Promise.all([
+    query,
+    supabase
+      .from('inspections')
+      .select('*, client:clients(*), agent:agents(*), service:services(*)')
+      .eq('user_id', user!.id),
+    supabase
+      .from('invoices')
+      .select('id, inspection_id, user_id, client_id, amount, tax_amount, total_amount, status, due_date, paid_date, stripe_payment_intent_id, stripe_payment_link, pass_card_fee, notes, created_at, updated_at')
+      .eq('user_id', user!.id),
+    supabase
+      .from('inspection_reports')
+      .select('inspection_id, status'),
+  ])
 
-  return <ClientsUI clients={(clients ?? []) as Client[]} q={params.q} />
+  const stageSnapshot = buildActionStageSnapshot({
+    clients: (clients ?? []) as Client[],
+    inspections: (inspections ?? []) as Inspection[],
+    invoices: (invoices ?? []) as Invoice[],
+    reports: (reports ?? []) as Pick<InspectionReport, 'inspection_id' | 'status'>[],
+  })
+
+  return <ClientsUI clients={(clients ?? []) as Client[]} q={params.q} stageSnapshot={stageSnapshot} />
 }
 
-function ClientsUI({ clients, q }: { clients: Client[]; q?: string }) {
+function ClientsUI({
+  clients,
+  q,
+  stageSnapshot,
+}: {
+  clients: Client[]
+  q?: string
+  stageSnapshot: ReturnType<typeof buildActionStageSnapshot>
+}) {
   return (
     <div className="p-4 md:p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
-          <p className="text-gray-500 mt-1">{clients.length} total clients</p>
-        </div>
-        <Button asChild>
-          <Link href="/clients/new">
-            <Plus className="h-4 w-4 mr-2" />
-            New Client
-          </Link>
-        </Button>
+      <StageHeader
+        eyebrow="Lead"
+        title="Lead Command"
+        description="Work the top of funnel here. These clients exist in the network but have not been converted into scheduled jobs yet."
+      />
+
+      <StageCounts counts={[
+        { label: 'Lead', value: stageSnapshot.lead.length },
+        { label: 'Schedule', value: stageSnapshot.schedule.length, tone: 'amber' },
+        { label: 'Prep', value: stageSnapshot.prep.length, tone: 'amber' },
+        { label: 'Inspect', value: stageSnapshot.inspect.length, tone: 'green' },
+        { label: 'Deliver', value: stageSnapshot.deliver.length, tone: 'green' },
+        { label: 'Collect', value: stageSnapshot.collect.length, tone: 'red' },
+      ]} />
+
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <ActionQueueCard
+          title="Unscheduled Leads"
+          description="Clients who are in Specthub but do not yet have an inspection scheduled."
+          emptyLabel="Every saved lead already has a scheduled inspection."
+          items={stageSnapshot.lead.slice(0, 8)}
+        />
+        <Card className="glass-card border-[#d8cfbd]">
+          <CardContent className="pt-6 space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold text-[#1f2f27]">Lead Actions</h2>
+              <p className="text-sm text-[#657168] mt-1">Use these quick jumps to move people into booked work.</p>
+            </div>
+            <div className="grid gap-3">
+              <Button asChild className="bg-[#2f5f4c] hover:bg-[#234b3c] text-[#f8f4ea] justify-start">
+                <Link href="/inspections/new">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Convert Lead to Inspection
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="justify-start border-[#bcae90] text-[#304239] hover:bg-[#f3ebdc]">
+                <Link href="/agents">Open Referral Partners</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Search */}

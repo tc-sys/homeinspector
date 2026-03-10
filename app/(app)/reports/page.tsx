@@ -3,9 +3,11 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
 import { FileText, ChevronRight, PlusCircle, ClipboardCheck } from 'lucide-react'
-import { isDemoMode, DEMO_REPORT_TEMPLATES, DEMO_INSPECTION_REPORTS } from '@/lib/demo'
+import { isDemoMode, DEMO_CLIENTS, DEMO_REPORT_TEMPLATES, DEMO_INSPECTION_REPORTS, DEMO_INSPECTIONS, DEMO_INVOICES } from '@/lib/demo'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import type { ReportTemplate, InspectionReport } from '@/types'
+import type { Client, ReportTemplate, Inspection, InspectionReport, Invoice } from '@/types'
+import { ActionQueueCard, StageHeader } from '@/components/action-system'
+import { buildActionStageSnapshot } from '@/lib/action-system'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,14 +21,21 @@ export default async function ReportsPage({
 
   let templates: ReportTemplate[] = []
   let reports: InspectionReport[] = []
+  let stageSnapshot: ReturnType<typeof buildActionStageSnapshot>
 
   if (isDemoMode()) {
     templates = DEMO_REPORT_TEMPLATES
     reports = DEMO_INSPECTION_REPORTS
+    stageSnapshot = buildActionStageSnapshot({
+      clients: DEMO_CLIENTS,
+      inspections: DEMO_INSPECTIONS,
+      invoices: DEMO_INVOICES,
+      reports: DEMO_INSPECTION_REPORTS,
+    })
   } else {
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
-    const [{ data: templateData }, { data: reportData }] = await Promise.all([
+    const [{ data: templateData }, { data: reportData }, { data: clientsData }, { data: inspectionsData }, { data: invoicesData }] = await Promise.all([
       supabase
         .from('report_templates')
         .select('*')
@@ -36,13 +45,44 @@ export default async function ReportsPage({
         .from('inspection_reports')
         .select('*, inspection:inspections(*, client:clients(*)), template:report_templates(*)')
         .order('updated_at', { ascending: false }),
+      supabase
+        .from('clients')
+        .select('*')
+        .eq('user_id', user!.id),
+      supabase
+        .from('inspections')
+        .select('*, client:clients(*), agent:agents(*), service:services(*)')
+        .eq('user_id', user!.id),
+      supabase
+        .from('invoices')
+        .select('*, client:clients(*), inspection:inspections(*)')
+        .eq('user_id', user!.id),
     ])
     templates = (templateData ?? []) as ReportTemplate[]
     reports = (reportData ?? []) as InspectionReport[]
+    stageSnapshot = buildActionStageSnapshot({
+      clients: (clientsData ?? []) as Client[],
+      inspections: (inspectionsData ?? []) as Inspection[],
+      invoices: (invoicesData ?? []) as Invoice[],
+      reports: (reportData ?? []) as InspectionReport[],
+    })
   }
 
   return (
     <div className="p-4 md:p-8 space-y-6">
+      <StageHeader
+        eyebrow="Deliver"
+        title="Deliver Command"
+        description="Push reports across the finish line. Finalize drafts, release ready reports, and keep client handoff moving."
+      />
+
+      <ActionQueueCard
+        title="Delivery Queue"
+        description="Reports that are ready for release right now."
+        emptyLabel="No finalized reports are waiting for delivery."
+        items={stageSnapshot.deliver.slice(0, 8)}
+      />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Reports</h1>

@@ -5,15 +5,18 @@ import { Button } from '@/components/ui/button'
 import { formatCurrency, formatDate, formatTime, statusColor, toISODateLocal } from '@/lib/utils'
 import { Calendar, DollarSign, ClipboardList, AlertCircle, Plus, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
-import type { Inspection, Invoice, InspectionReport } from '@/types'
+import type { Client, Inspection, Invoice, InspectionReport } from '@/types'
 import {
   isDemoMode,
+  DEMO_CLIENTS,
   DEMO_INSPECTIONS,
   DEMO_INVOICES,
   DEMO_ACTIVITY_EVENTS,
   DEMO_INSPECTION_REPORTS,
 } from '@/lib/demo'
 import { getWorkflowSnapshot, getWorkflowSummary } from '@/lib/workflow'
+import { buildActionStageSnapshot } from '@/lib/action-system'
+import { StageCounts } from '@/components/action-system'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,6 +43,12 @@ export default async function DashboardPage() {
       inspections: DEMO_INSPECTIONS,
       invoicesByInspectionId,
       reportStatusByInspectionId,
+    })
+    const actionSnapshot = buildActionStageSnapshot({
+      clients: DEMO_CLIENTS,
+      inspections: DEMO_INSPECTIONS,
+      invoices: DEMO_INVOICES,
+      reports: DEMO_INSPECTION_REPORTS,
     })
     const attentionJobs = DEMO_INSPECTIONS
       .map(inspection => ({
@@ -68,6 +77,7 @@ export default async function DashboardPage() {
       overdueCount={overdueCount}
       recentActivity={DEMO_ACTIVITY_EVENTS}
       workflowSnapshot={workflowSnapshot}
+      actionSnapshot={actionSnapshot}
       attentionJobs={attentionJobs}
     />
   }
@@ -90,6 +100,7 @@ export default async function DashboardPage() {
     { data: recentRaw },
     { count: completedLast30Days },
     { count: overdueCount },
+    { data: clientsRaw },
     { data: workflowInspectionsRaw },
     { data: workflowInvoicesRaw },
     { data: workflowReportsRaw },
@@ -134,6 +145,10 @@ export default async function DashboardPage() {
       .eq('user_id', user!.id)
       .eq('status', 'overdue'),
     supabase
+      .from('clients')
+      .select('*')
+      .eq('user_id', user!.id),
+    supabase
       .from('inspections')
       .select('id, user_id, client_id, agent_id, service_id, template_id, address, city, state, zip, scheduled_date, scheduled_time, duration_minutes, status, inspection_type, notes, square_footage, year_built, price, report_locked, created_at, updated_at')
       .eq('user_id', user!.id),
@@ -157,6 +172,12 @@ export default async function DashboardPage() {
     inspections: workflowInspections,
     invoicesByInspectionId: new Map(workflowInvoices.map(invoice => [invoice.inspection_id, invoice] as const)),
     reportStatusByInspectionId: new Map(workflowReports.map(report => [report.inspection_id, report.status] as const)),
+  })
+  const actionSnapshot = buildActionStageSnapshot({
+    clients: (clientsRaw ?? []) as Client[],
+    inspections: workflowInspections,
+    invoices: workflowInvoices,
+    reports: workflowReports,
   })
   const attentionJobs = workflowInspections
     .map(inspection => ({
@@ -185,6 +206,7 @@ export default async function DashboardPage() {
     overdueCount={overdueCount ?? 0}
     recentActivity={[]}
     workflowSnapshot={workflowSnapshot}
+    actionSnapshot={actionSnapshot}
     attentionJobs={attentionJobs}
   />
 }
@@ -199,6 +221,7 @@ function DashboardUI({
   overdueCount,
   recentActivity,
   workflowSnapshot,
+  actionSnapshot,
   attentionJobs,
 }: {
   today: Date
@@ -210,6 +233,7 @@ function DashboardUI({
   overdueCount: number
   recentActivity: Array<{ id: string; type: string; description: string; created_at: string }>
   workflowSnapshot: ReturnType<typeof getWorkflowSnapshot>
+  actionSnapshot: ReturnType<typeof buildActionStageSnapshot>
   attentionJobs: Array<{ inspection: Inspection; summary: ReturnType<typeof getWorkflowSummary> }>
 }) {
   return (
@@ -302,6 +326,15 @@ function DashboardUI({
           </CardContent>
         </Card>
       </div>
+
+      <StageCounts counts={[
+        { label: 'Lead', value: actionSnapshot.lead.length },
+        { label: 'Schedule', value: actionSnapshot.schedule.length, tone: 'amber' },
+        { label: 'Prep', value: actionSnapshot.prep.length, tone: 'amber' },
+        { label: 'Inspect', value: actionSnapshot.inspect.length, tone: 'green' },
+        { label: 'Deliver', value: actionSnapshot.deliver.length, tone: 'green' },
+        { label: 'Collect', value: actionSnapshot.collect.length, tone: 'red' },
+      ]} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="glass-card lg:col-span-2">

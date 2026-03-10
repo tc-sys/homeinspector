@@ -53,7 +53,7 @@ const workflowNav: WorkflowNavItem[] = [
     description: 'Calendar, availability, and dispatch planning',
   },
   {
-    href: '/inspections/new',
+    href: '/prep',
     label: 'Prep',
     icon: Wrench,
     description: 'Create jobs, assign services, and confirm readiness',

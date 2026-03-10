@@ -3,8 +3,10 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency, formatDate, statusColor } from '@/lib/utils'
 import Link from 'next/link'
-import type { Invoice } from '@/types'
-import { isDemoMode, DEMO_INVOICES } from '@/lib/demo'
+import type { Client, Inspection, InspectionReport, Invoice } from '@/types'
+import { isDemoMode, DEMO_CLIENTS, DEMO_INVOICES, DEMO_INSPECTIONS, DEMO_INSPECTION_REPORTS } from '@/lib/demo'
+import { ActionQueueCard, StageHeader } from '@/components/action-system'
+import { buildActionStageSnapshot } from '@/lib/action-system'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,11 +20,18 @@ export default async function InvoicesPage({
   const params = await searchParams
 
   let invoices: Invoice[] = []
+  let stageSnapshot: ReturnType<typeof buildActionStageSnapshot>
 
   if (isDemoMode()) {
     invoices = DEMO_INVOICES.filter(i =>
       !params.status || params.status === 'all' || i.status === params.status
     )
+    stageSnapshot = buildActionStageSnapshot({
+      clients: DEMO_CLIENTS,
+      inspections: DEMO_INSPECTIONS,
+      invoices: DEMO_INVOICES,
+      reports: DEMO_INSPECTION_REPORTS,
+    })
   } else {
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -32,8 +41,24 @@ export default async function InvoicesPage({
       .eq('user_id', user!.id)
       .order('created_at', { ascending: false })
     if (params.status && params.status !== 'all') query = query.eq('status', params.status)
-    const { data } = await query
+    const [{ data }, { data: allClients }, { data: allInspections }, { data: allReports }] = await Promise.all([
+      query,
+      supabase.from('clients').select('*').eq('user_id', user!.id),
+      supabase
+        .from('inspections')
+        .select('*, client:clients(first_name, last_name)')
+        .eq('user_id', user!.id),
+      supabase
+        .from('inspection_reports')
+        .select('inspection_id, status'),
+    ])
     invoices = (data ?? []) as Invoice[]
+    stageSnapshot = buildActionStageSnapshot({
+      clients: (allClients ?? []) as Client[],
+      inspections: (allInspections ?? []) as Inspection[],
+      invoices: (data ?? []) as Invoice[],
+      reports: (allReports ?? []) as Pick<InspectionReport, 'inspection_id' | 'status'>[],
+    })
   }
 
   const totalPending = invoices
@@ -46,6 +71,19 @@ export default async function InvoicesPage({
 
   return (
     <div className="p-4 md:p-8 space-y-6">
+      <StageHeader
+        eyebrow="Collect"
+        title="Collect Command"
+        description="Keep cash moving. Prioritize open invoices, overdue balances, and jobs that cannot be released until payment is resolved."
+      />
+
+      <ActionQueueCard
+        title="Collection Queue"
+        description="Open invoices that need action now."
+        emptyLabel="No invoices are waiting for payment follow-up."
+        items={stageSnapshot.collect.slice(0, 8)}
+      />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Invoices</h1>

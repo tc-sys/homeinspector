@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import type { Inspection } from '@/types'
 import { isDemoMode, DEMO_INSPECTIONS } from '@/lib/demo'
+import { ActionQueueCard, StageHeader } from '@/components/action-system'
 
 // Disable SSR for FullCalendar — it uses browser APIs directly
 const FullCalendar = nextDynamic(() => import('@fullcalendar/react'), { ssr: false })
@@ -26,6 +27,7 @@ const statusColors: Record<string, string> = {
 
 export default function SchedulePage() {
   const [events, setEvents] = useState<object[]>([])
+  const [inspections, setInspections] = useState<Inspection[]>([])
   const [bookingLink, setBookingLink] = useState('/book/keystone-philly')
   const supabase = createClient()
 
@@ -48,6 +50,7 @@ export default function SchedulePage() {
             backgroundColor: statusColors[inspection.status] ?? '#3b82f6',
             borderColor: 'transparent',
           }))
+        setInspections(DEMO_INSPECTIONS)
         setEvents(calEvents)
         return
       }
@@ -69,7 +72,8 @@ export default function SchedulePage() {
       ])
 
       if (data) {
-        const calEvents = (data as Inspection[]).map(inspection => ({
+        const typedData = data as Inspection[]
+        const calEvents = typedData.map(inspection => ({
           id: inspection.id,
           title: inspection.client
             ? `${inspection.client.first_name} ${inspection.client.last_name} — ${inspection.address}`
@@ -81,8 +85,9 @@ export default function SchedulePage() {
           ).toISOString(),
           url: `/inspections/${inspection.id}`,
           backgroundColor: statusColors[inspection.status] ?? '#3b82f6',
-          borderColor: 'transparent',
+            borderColor: 'transparent',
         }))
+        setInspections(typedData)
         setEvents(calEvents)
       }
       if (profile?.booking_slug && typeof window !== 'undefined') {
@@ -94,26 +99,56 @@ export default function SchedulePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const scheduledQueue = inspections
+    .filter(inspection => inspection.status === 'scheduled')
+    .sort((a, b) => `${a.scheduled_date} ${a.scheduled_time}`.localeCompare(`${b.scheduled_date} ${b.scheduled_time}`))
+    .slice(0, 6)
+    .map(inspection => ({
+      id: inspection.id,
+      title: inspection.address,
+      subtitle: `${inspection.scheduled_date} at ${inspection.scheduled_time}${inspection.client ? ` · ${inspection.client.first_name} ${inspection.client.last_name}` : ''}`,
+      note: 'Confirm the slot, route, and any day-of scheduling changes before the team heads out.',
+      href: `/inspections/${inspection.id}`,
+      actionLabel: 'Open job',
+      tone: 'amber' as const,
+    }))
+
   return (
     <div className="p-4 md:p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Schedule</h1>
-          <p className="text-gray-500 mt-1">View and manage your inspection calendar</p>
-        </div>
-        <div className="flex gap-3">
-          <Button asChild variant="outline">
-            <a href={bookingLink} target="_blank">
-              Booking Link
-            </a>
-          </Button>
-          <Button asChild>
-            <Link href="/inspections/new">
-              <Plus className="h-4 w-4 mr-2" />
-              New Inspection
-            </Link>
-          </Button>
-        </div>
+      <StageHeader
+        eyebrow="Schedule"
+        title="Schedule Command"
+        description="Drive the dispatch board from here. Keep the next few days locked in, visible, and conflict-free."
+      />
+
+      <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
+        <Card className="glass-card p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-[#1f2f27]">Dispatch Calendar</h2>
+              <p className="text-sm text-[#657168] mt-1">View and manage your inspection calendar</p>
+            </div>
+            <div className="flex gap-3">
+              <Button asChild variant="outline">
+                <a href={bookingLink} target="_blank">
+                  Booking Link
+                </a>
+              </Button>
+              <Button asChild>
+                <Link href="/inspections/new">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Inspection
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </Card>
+        <ActionQueueCard
+          title="Scheduling Queue"
+          description="These are the next appointments to verify and dispatch."
+          emptyLabel="No scheduled inspections are waiting in the queue."
+          items={scheduledQueue}
+        />
       </div>
 
       <Card className="p-4">

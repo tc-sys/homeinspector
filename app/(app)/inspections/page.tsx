@@ -5,9 +5,11 @@ import { Badge } from '@/components/ui/badge'
 import { formatCurrency, formatTime, statusColor } from '@/lib/utils'
 import { Plus, Search } from 'lucide-react'
 import Link from 'next/link'
-import type { Inspection } from '@/types'
-import { isDemoMode, DEMO_INSPECTIONS } from '@/lib/demo'
+import type { Client, Inspection, Invoice, InspectionReport } from '@/types'
+import { isDemoMode, DEMO_CLIENTS, DEMO_INSPECTIONS, DEMO_INVOICES, DEMO_INSPECTION_REPORTS } from '@/lib/demo'
 import { InspectionsMapDialog } from '@/components/inspections-map-dialog'
+import { ActionQueueCard, StageHeader } from '@/components/action-system'
+import { buildActionStageSnapshot } from '@/lib/action-system'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,12 +23,19 @@ export default async function InspectionsPage({
   const params = await searchParams
 
   let inspections: Inspection[] = []
+  let stageSnapshot: ReturnType<typeof buildActionStageSnapshot>
 
   if (isDemoMode()) {
     inspections = DEMO_INSPECTIONS.filter(i => {
       const matchStatus = !params.status || params.status === 'all' || i.status === params.status
       const matchQ = !params.q || i.address.toLowerCase().includes(params.q.toLowerCase())
       return matchStatus && matchQ
+    })
+    stageSnapshot = buildActionStageSnapshot({
+      clients: DEMO_CLIENTS,
+      inspections: DEMO_INSPECTIONS,
+      invoices: DEMO_INVOICES,
+      reports: DEMO_INSPECTION_REPORTS,
     })
   } else {
     const supabase = await createServerSupabaseClient()
@@ -39,13 +48,40 @@ export default async function InspectionsPage({
       .order('scheduled_time', { ascending: false })
     if (params.status && params.status !== 'all') query = query.eq('status', params.status)
     if (params.q) query = query.ilike('address', `%${params.q}%`)
-    const { data } = await query
+    const [{ data }, { data: allClients }, { data: allInspections }, { data: allInvoices }, { data: allReports }] = await Promise.all([
+      query,
+      supabase.from('clients').select('*').eq('user_id', user!.id),
+      supabase
+        .from('inspections')
+        .select('*, client:clients(first_name, last_name), agent:agents(first_name, last_name), service:services(name)')
+        .eq('user_id', user!.id),
+      supabase
+        .from('invoices')
+        .select('*, client:clients(first_name, last_name), inspection:inspections(address, scheduled_date)')
+        .eq('user_id', user!.id),
+      supabase
+        .from('inspection_reports')
+        .select('inspection_id, status'),
+    ])
     inspections = (data ?? []) as Inspection[]
+    stageSnapshot = buildActionStageSnapshot({
+      clients: (allClients ?? []) as Client[],
+      inspections: (allInspections ?? []) as Inspection[],
+      invoices: (allInvoices ?? []) as Invoice[],
+      reports: (allReports ?? []) as Pick<InspectionReport, 'inspection_id' | 'status'>[],
+    })
   }
 
   return (
     <div className="p-4 md:p-8 space-y-6 animate-rise-in">
-      <div className="rounded-2xl border border-[#cfc5af] bg-[linear-gradient(130deg,#fffdf8_0%,#f3ecde_55%,#efe6d7_100%)] px-6 py-5">
+      <StageHeader
+        eyebrow="Inspect"
+        title="Inspect Command"
+        description="This is the field execution surface. Keep live inspections moving and close out completed jobs that still need report work."
+      />
+
+      <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
+        <div className="rounded-2xl border border-[#cfc5af] bg-[linear-gradient(130deg,#fffdf8_0%,#f3ecde_55%,#efe6d7_100%)] px-6 py-5">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-[#627066]">Field Activity</p>
@@ -71,6 +107,13 @@ export default async function InspectionsPage({
             </Button>
           </div>
         </div>
+        </div>
+        <ActionQueueCard
+          title="Inspection Queue"
+          description="Jobs that are on site now or finished but still need report completion."
+          emptyLabel="No inspections are actively waiting on field execution."
+          items={stageSnapshot.inspect.slice(0, 8)}
+        />
       </div>
 
       <div className="glass-card rounded-xl p-4 flex items-center gap-4 flex-wrap">
