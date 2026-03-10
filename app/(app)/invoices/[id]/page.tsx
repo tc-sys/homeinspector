@@ -20,9 +20,10 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   let reportStatus: InspectionReport['status'] | null = null
 
   if (isDemoMode()) {
-    invoice = DEMO_INVOICES.find(i => i.id === id) ?? null
-    if (!invoice) notFound()
-    reportStatus = DEMO_INSPECTION_REPORTS.find(report => report.inspection_id === invoice.inspection_id)?.status ?? null
+    const demoInvoice = DEMO_INVOICES.find(i => i.id === id) ?? null
+    if (!demoInvoice) notFound()
+    invoice = demoInvoice
+    reportStatus = DEMO_INSPECTION_REPORTS.find(report => report.inspection_id === demoInvoice.inspection_id)?.status ?? null
   } else {
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -42,6 +43,8 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       .single()
     reportStatus = (reportData?.status as InspectionReport['status'] | undefined) ?? null
   }
+
+  if (!invoice) notFound()
 
   return (
     <div className="p-4 md:p-8 max-w-3xl space-y-6">
