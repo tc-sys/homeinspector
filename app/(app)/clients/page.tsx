@@ -6,7 +6,8 @@ import { getInitials, formatDate } from '@/lib/utils'
 import { Plus, Phone, Mail, Search } from 'lucide-react'
 import Link from 'next/link'
 import type { Client, Inspection, Invoice, InspectionReport } from '@/types'
-import { isDemoMode, DEMO_CLIENTS, DEMO_INSPECTIONS, DEMO_INVOICES, DEMO_INSPECTION_REPORTS } from '@/lib/demo'
+import { isDemoMode, DEMO_INSPECTION_REPORTS } from '@/lib/demo'
+import { getServerDemoData } from '@/lib/demo-state-server'
 import { ActionQueueCard, StageHeader } from '@/components/action-system'
 import { buildActionStageSnapshot } from '@/lib/action-system'
 
@@ -20,16 +21,17 @@ export default async function ClientsPage({
   const params = await searchParams
 
   if (isDemoMode()) {
+    const demoData = await getServerDemoData()
     const q = params.q?.toLowerCase()
     const clients = q
-      ? DEMO_CLIENTS.filter(c =>
+      ? demoData.clients.filter(c =>
           `${c.first_name} ${c.last_name} ${c.email}`.toLowerCase().includes(q)
         )
-      : DEMO_CLIENTS
+      : demoData.clients
     const stageSnapshot = buildActionStageSnapshot({
-      clients: DEMO_CLIENTS,
-      inspections: DEMO_INSPECTIONS,
-      invoices: DEMO_INVOICES,
+      clients: demoData.clients,
+      inspections: demoData.inspections,
+      invoices: demoData.invoices,
       reports: DEMO_INSPECTION_REPORTS,
     })
     return <ClientsUI clients={clients} q={params.q} stageSnapshot={stageSnapshot} />

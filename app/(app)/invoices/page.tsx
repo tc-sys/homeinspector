@@ -4,7 +4,8 @@ import { Badge } from '@/components/ui/badge'
 import { formatCurrency, formatDate, statusColor } from '@/lib/utils'
 import Link from 'next/link'
 import type { Client, Inspection, InspectionReport, Invoice } from '@/types'
-import { isDemoMode, DEMO_CLIENTS, DEMO_INVOICES, DEMO_INSPECTIONS, DEMO_INSPECTION_REPORTS } from '@/lib/demo'
+import { isDemoMode, DEMO_INSPECTION_REPORTS } from '@/lib/demo'
+import { getServerDemoData } from '@/lib/demo-state-server'
 import { ActionQueueCard, StageHeader } from '@/components/action-system'
 import { buildActionStageSnapshot } from '@/lib/action-system'
 
@@ -23,13 +24,14 @@ export default async function InvoicesPage({
   let stageSnapshot: ReturnType<typeof buildActionStageSnapshot>
 
   if (isDemoMode()) {
-    invoices = DEMO_INVOICES.filter(i =>
+    const demoData = await getServerDemoData()
+    invoices = demoData.invoices.filter(i =>
       !params.status || params.status === 'all' || i.status === params.status
     )
     stageSnapshot = buildActionStageSnapshot({
-      clients: DEMO_CLIENTS,
-      inspections: DEMO_INSPECTIONS,
-      invoices: DEMO_INVOICES,
+      clients: demoData.clients,
+      inspections: demoData.inspections,
+      invoices: demoData.invoices,
       reports: DEMO_INSPECTION_REPORTS,
     })
   } else {

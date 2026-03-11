@@ -55,11 +55,21 @@ create table if not exists public.clients (
   address text,
   notes text,
   tags text[] default '{}',
+  pipeline_stage text not null default 'lead'
+    check (pipeline_stage in ('lead', 'schedule', 'converted')),
+  lead_street text,
+  lead_city text,
+  lead_state text,
+  lead_zip text,
+  lead_availability jsonb not null default '[]'::jsonb,
+  lead_notes text,
+  sent_to_schedule_at timestamptz,
   created_at timestamptz default now() not null,
   updated_at timestamptz default now() not null
 );
 
 create index if not exists clients_user_id_idx on public.clients(user_id);
+create index if not exists clients_pipeline_stage_idx on public.clients(pipeline_stage);
 
 -- ============================================================
 -- AGENTS
@@ -140,6 +150,27 @@ alter table public.user_profiles add column if not exists inspector_photo_url te
 alter table public.user_profiles add column if not exists default_cover_photo_url text;
 alter table public.inspections add column if not exists cover_photo_url text;
 alter table public.inspections add column if not exists template_id uuid;
+alter table public.clients add column if not exists pipeline_stage text not null default 'lead';
+alter table public.clients add column if not exists lead_street text;
+alter table public.clients add column if not exists lead_city text;
+alter table public.clients add column if not exists lead_state text;
+alter table public.clients add column if not exists lead_zip text;
+alter table public.clients add column if not exists lead_availability jsonb not null default '[]'::jsonb;
+alter table public.clients add column if not exists lead_notes text;
+alter table public.clients add column if not exists sent_to_schedule_at timestamptz;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'clients_pipeline_stage_check'
+  ) then
+    alter table public.clients
+      add constraint clients_pipeline_stage_check
+      check (pipeline_stage in ('lead', 'schedule', 'converted'));
+  end if;
+end $$;
 
 -- ============================================================
 -- REPORT TEMPLATES
@@ -170,6 +201,36 @@ begin
       on delete set null;
   end if;
 end $$;
+
+alter table public.clients add column if not exists converted_inspection_id uuid;
+create index if not exists clients_converted_inspection_id_idx on public.clients(converted_inspection_id);
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'clients_converted_inspection_id_fkey'
+  ) then
+    alter table public.clients
+      add constraint clients_converted_inspection_id_fkey
+      foreign key (converted_inspection_id)
+      references public.inspections(id)
+      on delete set null;
+  end if;
+end $$;
+
+update public.clients c
+set pipeline_stage = 'converted',
+    converted_inspection_id = latest.id
+from lateral (
+  select i.id
+  from public.inspections i
+  where i.client_id = c.id
+  order by i.scheduled_date desc nulls last, i.scheduled_time desc nulls last, i.created_at desc
+  limit 1
+) latest
+where latest.id is not null;
 
 -- ============================================================
 -- INSPECTION REPORTS (COMPLETED/DRAFT ANSWERS)

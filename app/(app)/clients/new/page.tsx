@@ -44,6 +44,8 @@ export default function NewClientPage() {
       const { error, data } = await supabase.from('clients').insert({
         ...form,
         tags: selectedTags,
+        pipeline_stage: 'lead',
+        lead_availability: [],
         user_id: user!.id,
       }).select().single()
 

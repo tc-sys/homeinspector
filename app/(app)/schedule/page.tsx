@@ -1,19 +1,22 @@
 'use client'
 export const dynamic = 'force-dynamic'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import nextDynamic from 'next/dynamic'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import listPlugin from '@fullcalendar/list'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
-import type { Inspection } from '@/types'
-import { isDemoMode, DEMO_INSPECTIONS } from '@/lib/demo'
+import type { Client, Inspection } from '@/types'
+import { isDemoMode, DEMO_INSPECTION_REPORTS } from '@/lib/demo'
+import { getBrowserDemoData } from '@/lib/demo-state'
 import { ActionQueueCard, StageHeader } from '@/components/action-system'
+import { buildActionStageSnapshot } from '@/lib/action-system'
 
 // Disable SSR for FullCalendar — it uses browser APIs directly
 const FullCalendar = nextDynamic(() => import('@fullcalendar/react'), { ssr: false })
@@ -26,15 +29,26 @@ const statusColors: Record<string, string> = {
 }
 
 export default function SchedulePage() {
+  return (
+    <Suspense fallback={<div className="p-4 md:p-8">Loading schedule...</div>}>
+      <SchedulePageContent />
+    </Suspense>
+  )
+}
+
+function SchedulePageContent() {
+  const searchParams = useSearchParams()
   const [events, setEvents] = useState<object[]>([])
   const [inspections, setInspections] = useState<Inspection[]>([])
+  const [clients, setClients] = useState<Client[]>([])
   const [bookingLink, setBookingLink] = useState('/book/keystone-philly')
   const supabase = createClient()
 
   useEffect(() => {
     async function loadInspections() {
       if (isDemoMode()) {
-        const calEvents = DEMO_INSPECTIONS
+        const demoData = getBrowserDemoData()
+        const calEvents = demoData.inspections
           .filter(inspection => inspection.status !== 'cancelled')
           .map(inspection => ({
             id: inspection.id,
@@ -50,7 +64,8 @@ export default function SchedulePage() {
             backgroundColor: statusColors[inspection.status] ?? '#3b82f6',
             borderColor: 'transparent',
           }))
-        setInspections(DEMO_INSPECTIONS)
+        setClients(demoData.clients)
+        setInspections(demoData.inspections)
         setEvents(calEvents)
         return
       }
@@ -58,7 +73,7 @@ export default function SchedulePage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const [{ data }, { data: profile }] = await Promise.all([
+      const [{ data }, { data: profile }, { data: clientData }] = await Promise.all([
         supabase
           .from('inspections')
           .select('*, client:clients(first_name, last_name)')
@@ -69,6 +84,10 @@ export default function SchedulePage() {
           .select('booking_slug')
           .eq('id', user.id)
           .single(),
+        supabase
+          .from('clients')
+          .select('*')
+          .eq('user_id', user.id),
       ])
 
       if (data) {
@@ -90,6 +109,7 @@ export default function SchedulePage() {
         setInspections(typedData)
         setEvents(calEvents)
       }
+      setClients((clientData ?? []) as Client[])
       if (profile?.booking_slug && typeof window !== 'undefined') {
         setBookingLink(`${window.location.origin}/book/${profile.booking_slug}`)
       }
@@ -99,19 +119,12 @@ export default function SchedulePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const scheduledQueue = inspections
-    .filter(inspection => inspection.status === 'scheduled')
-    .sort((a, b) => `${a.scheduled_date} ${a.scheduled_time}`.localeCompare(`${b.scheduled_date} ${b.scheduled_time}`))
-    .slice(0, 6)
-    .map(inspection => ({
-      id: inspection.id,
-      title: inspection.address,
-      subtitle: `${inspection.scheduled_date} at ${inspection.scheduled_time}${inspection.client ? ` · ${inspection.client.first_name} ${inspection.client.last_name}` : ''}`,
-      note: 'Confirm the slot, route, and any day-of scheduling changes before the team heads out.',
-      href: `/inspections/${inspection.id}`,
-      actionLabel: 'Open job',
-      tone: 'amber' as const,
-    }))
+  const stageSnapshot = buildActionStageSnapshot({
+    clients,
+    inspections,
+    invoices: isDemoMode() ? getBrowserDemoData().invoices : [],
+    reports: isDemoMode() ? DEMO_INSPECTION_REPORTS : [],
+  })
 
   return (
     <div className="p-4 md:p-8 space-y-6">
@@ -121,6 +134,12 @@ export default function SchedulePage() {
         description="Drive the dispatch board from here. Keep the next few days locked in, visible, and conflict-free."
         currentStage="schedule"
       />
+
+      {searchParams.get('requested') === '1' && (
+        <div className="rounded-2xl border border-[#bfd3c6] bg-[#eef5f0] px-4 py-3 text-sm text-[#2d5d48]">
+          Scheduling request saved. This lead is now waiting in the scheduling queue.
+        </div>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
         <Card className="glass-card p-4">
@@ -145,10 +164,10 @@ export default function SchedulePage() {
           </div>
         </Card>
         <ActionQueueCard
-          title="Scheduling Queue"
-          description="These are the next appointments to verify and dispatch."
-          emptyLabel="No scheduled inspections are waiting in the queue."
-          items={scheduledQueue}
+          title="Scheduling Requests"
+          description="Clients who submitted address details and preferred dates/times but do not have a final inspection slot yet."
+          emptyLabel="No client requests are waiting for scheduling."
+          items={stageSnapshot.schedule.slice(0, 8)}
         />
       </div>
 

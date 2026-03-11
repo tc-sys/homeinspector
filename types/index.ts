@@ -1,6 +1,12 @@
 export type InspectionStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
 export type InvoiceStatus = 'pending' | 'paid' | 'overdue' | 'cancelled'
 export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded'
+export type ClientPipelineStage = 'lead' | 'schedule' | 'converted'
+
+export interface LeadAvailabilityOption {
+  date: string
+  time: string
+}
 
 export interface UserProfile {
   id: string
@@ -27,6 +33,15 @@ export interface Client {
   address: string | null
   notes: string | null
   tags: string[]
+  pipeline_stage: ClientPipelineStage
+  lead_street: string | null
+  lead_city: string | null
+  lead_state: string | null
+  lead_zip: string | null
+  lead_availability: LeadAvailabilityOption[]
+  lead_notes: string | null
+  sent_to_schedule_at: string | null
+  converted_inspection_id: string | null
   created_at: string
   updated_at: string
 }

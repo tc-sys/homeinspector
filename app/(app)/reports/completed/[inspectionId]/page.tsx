@@ -4,10 +4,9 @@ import { TemplateEditor } from '../../[id]/template-editor'
 import {
   isDemoMode,
   DEMO_INSPECTION_REPORTS,
-  DEMO_INSPECTIONS,
   DEMO_REPORT_TEMPLATES,
-  DEMO_INVOICES,
 } from '@/lib/demo'
+import { getServerDemoData } from '@/lib/demo-state-server'
 import type { Inspection, ReportTemplate, UserProfile, Invoice } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -26,13 +25,14 @@ export default async function CompletedReportPage({
   let invoiceContext: Invoice | null = null
 
   if (isDemoMode()) {
-    inspection = DEMO_INSPECTIONS.find(i => i.id === inspectionId) ?? null
+    const demoData = await getServerDemoData()
+    inspection = demoData.inspections.find(i => i.id === inspectionId) ?? null
     if (!inspection) notFound()
     const report = DEMO_INSPECTION_REPORTS.find(r => r.inspection_id === inspectionId) ?? null
     template = DEMO_REPORT_TEMPLATES.find(t => t.id === (inspection!.template_id ?? report?.template_id)) ?? DEMO_REPORT_TEMPLATES[0]
     reportAnswers = report?.answers ?? template.sections
     reportStatus = report?.status ?? 'draft'
-    invoiceContext = DEMO_INVOICES.find(invoice => invoice.inspection_id === inspectionId) ?? null
+    invoiceContext = demoData.invoices.find(invoice => invoice.inspection_id === inspectionId) ?? null
     profileContext = {
       company_name: 'Keystone Premier Home Contracting Group',
       full_name: 'Avery Thompson',

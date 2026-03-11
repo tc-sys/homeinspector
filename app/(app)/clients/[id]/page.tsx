@@ -7,7 +7,8 @@ import { ArrowLeft, Mail, Phone, MapPin, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { Client, Inspection, ContactLog } from '@/types'
-import { isDemoMode, DEMO_CLIENTS, DEMO_INSPECTIONS, DEMO_CONTACT_LOGS } from '@/lib/demo'
+import { isDemoMode, DEMO_CONTACT_LOGS } from '@/lib/demo'
+import { getServerDemoData } from '@/lib/demo-state-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,9 +20,10 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   let logs: ContactLog[] = []
 
   if (isDemoMode()) {
-    client = DEMO_CLIENTS.find(c => c.id === id) ?? null
+    const demoData = await getServerDemoData()
+    client = demoData.clients.find(c => c.id === id) ?? null
     if (!client) notFound()
-    inspections = DEMO_INSPECTIONS.filter(i => i.client_id === id)
+    inspections = demoData.inspections.filter(i => i.client_id === id)
     logs = DEMO_CONTACT_LOGS.filter(l => l.client_id === id)
   } else {
     const supabase = await createServerSupabaseClient()
@@ -58,6 +60,9 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         </div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{client.first_name} {client.last_name}</h1>
+          <div className="mt-2">
+            <Badge variant="secondary">{client.pipeline_stage}</Badge>
+          </div>
           <div className="flex flex-wrap items-center gap-3 mt-2">
             {client.email && (
               <a href={`mailto:${client.email}`} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-blue-600">
@@ -84,6 +89,50 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
           )}
         </div>
       </div>
+
+      {(client.pipeline_stage === 'lead' || client.pipeline_stage === 'schedule') && (
+        <Card className="glass-card border-[#d8cfbd]">
+          <CardContent className="pt-6 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-[#23352c]">Lead Workflow</p>
+              <p className="text-sm text-[#667269] mt-1">
+                {client.pipeline_stage === 'lead'
+                  ? 'This client is still in Lead and needs a scheduling request.'
+                  : 'This client has submitted scheduling details and is waiting for a final slot.'}
+              </p>
+            </div>
+            <Button asChild>
+              <Link href={client.pipeline_stage === 'schedule' ? `/clients/${id}/book-inspection` : `/clients/${id}/book-inspection`}>
+                {client.pipeline_stage === 'schedule' ? 'Edit Scheduling Request' : 'Book Inspection'}
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {client.pipeline_stage === 'schedule' && (
+        <Card className="glass-card border-[#d8cfbd]">
+          <CardHeader><CardTitle>Scheduling Request</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-[#23352c]">
+              {[client.lead_street, client.lead_city, client.lead_state, client.lead_zip].filter(Boolean).join(', ')}
+            </p>
+            {client.lead_availability.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {client.lead_availability.map(option => (
+                  <Badge key={`${option.date}-${option.time}`} variant="secondary">
+                    {option.date} {option.time}
+                  </Badge>
+                ))}
+              </div>
+            )}
+            {client.lead_notes && <p className="text-sm text-[#667269]">{client.lead_notes}</p>}
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/schedule/assign/${client.id}`}>Assign Final Slot</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {client.notes && (
         <Card>

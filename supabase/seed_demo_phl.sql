@@ -252,6 +252,58 @@ select
 from public.inspections i
 where i.user_id in (select user_id from _demo_target_user);
 
+with streets as (select array['Walnut St','Chestnut St','Spruce St','Pine St','South St','Market St','Frankford Ave','Passyunk Ave','Ridge Ave','Girard Ave','Washington Ave','Locust St','Tasker St','Mifflin St','Lombard St','Poplar St','Master St','Morris St','Cedar Ave','Lansdowne Ave'] as n),
+areas as (
+  select * from (values
+    ('Philadelphia','PA','19103'),('Philadelphia','PA','19147'),('Philadelphia','PA','19146'),('Philadelphia','PA','19125'),
+    ('Ardmore','PA','19003'),('Bryn Mawr','PA','19010'),('Villanova','PA','19085'),('Radnor','PA','19087'),
+    ('Conshohocken','PA','19428'),('King of Prussia','PA','19406'),('Doylestown','PA','18901'),
+    ('Jenkintown','PA','19046'),('Media','PA','19063'),('Havertown','PA','19083'),('West Chester','PA','19380')
+  ) as a(city, state, zip)
+),
+area_indexed as (select row_number() over () as rn, city, state, zip from areas),
+inspection_indexed as (
+  select row_number() over (order by created_at, id) as rn, id
+  from public.inspections
+  where user_id in (select user_id from _demo_target_user)
+)
+update public.clients c
+set
+  pipeline_stage = case
+    when dc.rn <= 96 then 'converted'
+    when dc.rn between 97 and 108 then 'schedule'
+    else 'lead'
+  end,
+  lead_street = case
+    when dc.rn between 97 and 108
+      then (115 + (((dc.rn - 1) * 7) % 8900))::text || ' ' || (select n[(((dc.rn - 1) % 20) + 1)] from streets)
+    else null
+  end,
+  lead_city = case when dc.rn between 97 and 108 then ai.city else null end,
+  lead_state = case when dc.rn between 97 and 108 then ai.state else null end,
+  lead_zip = case when dc.rn between 97 and 108 then ai.zip else null end,
+  lead_availability = case
+    when dc.rn between 97 and 108 then jsonb_build_array(
+      jsonb_build_object('date', to_char(current_date + (((dc.rn - 96) % 2) + 2), 'YYYY-MM-DD'), 'time', case when dc.rn % 2 = 0 then '09:00' else '13:30' end),
+      jsonb_build_object('date', to_char(current_date + (((dc.rn - 96) % 3) + 4), 'YYYY-MM-DD'), 'time', case when dc.rn % 3 = 0 then '11:00' else '15:00' end),
+      jsonb_build_object('date', to_char(current_date + (((dc.rn - 96) % 4) + 6), 'YYYY-MM-DD'), 'time', '10:00')
+    )
+    else '[]'::jsonb
+  end,
+  lead_notes = case
+    when dc.rn between 97 and 108 then 'Client prefers afternoon if possible; lockbox code available after confirmation.'
+    else null
+  end,
+  sent_to_schedule_at = case
+    when dc.rn between 97 and 108 then now() - (((dc.rn - 96) % 4) + 3) * interval '1 day'
+    else null
+  end,
+  converted_inspection_id = ii.id
+from _demo_clients dc
+left join area_indexed ai on ai.rn = ((dc.rn - 1) % 15) + 1
+left join inspection_indexed ii on ii.rn = dc.rn
+where c.id = dc.id;
+
 insert into public.contacts_log (id, user_id, client_id, agent_id, type, notes, created_at)
 select
   uuid_generate_v4(),

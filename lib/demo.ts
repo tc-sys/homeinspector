@@ -12,6 +12,7 @@ import type {
   DemoScenario,
   DemoSource,
   DemoRuntimeConfig,
+  LeadAvailabilityOption,
 } from '@/types'
 
 function dateOnly(date: Date): string {
@@ -116,6 +117,16 @@ export const DEMO_CLIENTS: Client[] = Array.from({ length: 165 }, (_, i) => {
   const area = PHILLY_AREAS[i % PHILLY_AREAS.length]
   const street = PHILLY_STREETS[i % PHILLY_STREETS.length]
   const houseNum = 100 + (i * 7 % 8900)
+  const scheduleRequestAddress = `${houseNum + 15} ${street}`
+  const leadAvailability: LeadAvailabilityOption[] = i >= 96 && i < 108
+    ? [
+      { date: dateOnly(daysAgo(-2 - (i % 2))), time: i % 2 === 0 ? '09:00' : '13:30' },
+      { date: dateOnly(daysAgo(-4 - (i % 3))), time: i % 3 === 0 ? '11:00' : '15:00' },
+      { date: dateOnly(daysAgo(-6 - (i % 4))), time: '10:00' },
+    ]
+    : []
+  const pipelineStage: Client['pipeline_stage'] =
+    i < 96 ? 'converted' : i < 108 ? 'schedule' : 'lead'
   return {
     id: `client-${i + 1}`,
     user_id: DEMO_USER_ID,
@@ -126,6 +137,15 @@ export const DEMO_CLIENTS: Client[] = Array.from({ length: 165 }, (_, i) => {
     address: `${houseNum} ${street}, ${area.city}, ${area.state} ${area.zip}`,
     notes: i % 3 === 0 ? 'Repeat buyer; prefers PDF + SMS updates.' : null,
     tags: i % 5 === 0 ? ['VIP', 'Referral'] : i % 3 === 0 ? ['Investor'] : ['Buyer'],
+    pipeline_stage: pipelineStage,
+    lead_street: pipelineStage === 'schedule' ? scheduleRequestAddress : null,
+    lead_city: pipelineStage === 'schedule' ? area.city : null,
+    lead_state: pipelineStage === 'schedule' ? area.state : null,
+    lead_zip: pipelineStage === 'schedule' ? area.zip : null,
+    lead_availability: leadAvailability,
+    lead_notes: pipelineStage === 'schedule' ? 'Client prefers afternoon if possible; lockbox code available after confirmation.' : null,
+    sent_to_schedule_at: pipelineStage === 'schedule' ? daysAgo(3 + (i % 4)).toISOString() : null,
+    converted_inspection_id: pipelineStage === 'converted' ? `inspection-${(i % 96) + 1}` : null,
     created_at: daysAgo(89 - (i % 80)).toISOString(),
     updated_at: daysAgo((i % 25)).toISOString(),
   }

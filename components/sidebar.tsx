@@ -110,7 +110,7 @@ function getActiveSidebarKey(pathname: string) {
   if (pathname === '/clients' || pathname.startsWith('/clients/') || pathname === '/agents' || pathname.startsWith('/agents/')) {
     return 'lead'
   }
-  if (pathname === '/schedule') return 'schedule'
+  if (pathname === '/schedule' || pathname.startsWith('/schedule/')) return 'schedule'
   if (pathname === '/prep' || pathname === '/inspections/new') return 'prep'
   if (pathname === '/inspections' || pathname.startsWith('/inspections/')) {
     return pathname === '/inspections/new' ? 'prep' : 'inspect'

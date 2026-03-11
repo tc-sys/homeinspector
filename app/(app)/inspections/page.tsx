@@ -6,7 +6,8 @@ import { formatCurrency, formatTime, statusColor } from '@/lib/utils'
 import { Plus, Search } from 'lucide-react'
 import Link from 'next/link'
 import type { Client, Inspection, Invoice, InspectionReport } from '@/types'
-import { isDemoMode, DEMO_CLIENTS, DEMO_INSPECTIONS, DEMO_INVOICES, DEMO_INSPECTION_REPORTS } from '@/lib/demo'
+import { isDemoMode, DEMO_INSPECTION_REPORTS } from '@/lib/demo'
+import { getServerDemoData } from '@/lib/demo-state-server'
 import { InspectionsMapDialog } from '@/components/inspections-map-dialog'
 import { ActionQueueCard, StageHeader } from '@/components/action-system'
 import { buildActionStageSnapshot } from '@/lib/action-system'
@@ -26,15 +27,16 @@ export default async function InspectionsPage({
   let stageSnapshot: ReturnType<typeof buildActionStageSnapshot>
 
   if (isDemoMode()) {
-    inspections = DEMO_INSPECTIONS.filter(i => {
+    const demoData = await getServerDemoData()
+    inspections = demoData.inspections.filter(i => {
       const matchStatus = !params.status || params.status === 'all' || i.status === params.status
       const matchQ = !params.q || i.address.toLowerCase().includes(params.q.toLowerCase())
       return matchStatus && matchQ
     })
     stageSnapshot = buildActionStageSnapshot({
-      clients: DEMO_CLIENTS,
-      inspections: DEMO_INSPECTIONS,
-      invoices: DEMO_INVOICES,
+      clients: demoData.clients,
+      inspections: demoData.inspections,
+      invoices: demoData.invoices,
       reports: DEMO_INSPECTION_REPORTS,
     })
   } else {

@@ -5,59 +5,92 @@ import { Button } from '@/components/ui/button'
 import { formatCurrency, formatDate, formatTime, statusColor, toISODateLocal } from '@/lib/utils'
 import { Calendar, DollarSign, ClipboardList, AlertCircle, Plus, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
-import type { Inspection, Invoice, InspectionReport } from '@/types'
+import type { Client, Inspection, Invoice, InspectionReport } from '@/types'
 import {
   isDemoMode,
-  DEMO_INSPECTIONS,
-  DEMO_INVOICES,
   DEMO_ACTIVITY_EVENTS,
   DEMO_INSPECTION_REPORTS,
 } from '@/lib/demo'
+import { getServerDemoData } from '@/lib/demo-state-server'
+import { buildActionStageSnapshot } from '@/lib/action-system'
 import { getWorkflowStageAgeDays, getWorkflowSummary } from '@/lib/workflow'
 import { WorkflowStageBar } from '@/components/action-system'
 
 export const dynamic = 'force-dynamic'
 
+type DashboardAttentionItem = {
+  id: string
+  title: string
+  stageLabel: string
+  note: string
+  actionLabel: string
+  href: string
+  daysInStage: number
+  priority: number
+}
+
 export default async function DashboardPage() {
   const today = new Date()
 
   if (isDemoMode()) {
-    const upcomingInspections = DEMO_INSPECTIONS.filter(i => i.status === 'scheduled')
-    const revenueThisMonth = DEMO_INVOICES
+    const demoData = await getServerDemoData()
+    const upcomingInspections = demoData.inspections.filter(i => i.status === 'scheduled')
+    const revenueThisMonth = demoData.invoices
       .filter(i => i.status === 'paid')
       .reduce((s, i) => s + i.total_amount, 0)
-    const pendingCount = DEMO_INVOICES.filter(i => i.status === 'pending').length
-    const recentInspections = [...DEMO_INSPECTIONS].reverse().slice(0, 5)
-    const completedLast30Days = DEMO_INSPECTIONS.filter(i => {
+    const pendingCount = demoData.invoices.filter(i => i.status === 'pending').length
+    const recentInspections = [...demoData.inspections].reverse().slice(0, 5)
+    const completedLast30Days = demoData.inspections.filter(i => {
       if (i.status !== 'completed') return false
       const inspectionDate = new Date(i.scheduled_date + 'T12:00:00Z')
       const diffMs = today.getTime() - inspectionDate.getTime()
       return diffMs >= 0 && diffMs <= 30 * 24 * 60 * 60 * 1000
     }).length
-    const overdueCount = DEMO_INVOICES.filter(i => i.status === 'overdue').length
-    const invoicesByInspectionId = new Map(DEMO_INVOICES.map(invoice => [invoice.inspection_id, invoice] as const))
+    const overdueCount = demoData.invoices.filter(i => i.status === 'overdue').length
+    const invoicesByInspectionId = new Map(demoData.invoices.map(invoice => [invoice.inspection_id, invoice] as const))
     const reportByInspectionId = new Map(DEMO_INSPECTION_REPORTS.map(report => [report.inspection_id, report] as const))
-    const attentionJobs = DEMO_INSPECTIONS
-      .map(inspection => ({
-        inspection,
-        summary: getWorkflowSummary({
+    const actionSnapshot = buildActionStageSnapshot({
+      clients: demoData.clients,
+      inspections: demoData.inspections,
+      invoices: demoData.invoices,
+      reports: DEMO_INSPECTION_REPORTS,
+    })
+    const stageAttention: DashboardAttentionItem[] = [...actionSnapshot.schedule, ...actionSnapshot.lead].map(item => ({
+      id: item.id,
+      title: item.title,
+      stageLabel: item.stage === 'schedule' ? 'Schedule' : 'Lead',
+      note: item.note,
+      actionLabel: item.actionLabel,
+      href: item.href,
+      daysInStage: item.ageDays ?? 0,
+      priority: item.stage === 'schedule' ? 0 : 1,
+    }))
+    const inspectionAttention: DashboardAttentionItem[] = demoData.inspections
+      .map(inspection => {
+        const workflowSummary = getWorkflowSummary({
           inspection,
           invoice: invoicesByInspectionId.get(inspection.id) ?? null,
           reportStatus: reportByInspectionId.get(inspection.id)?.status ?? null,
-        }),
+        })
+
+        return {
+        id: inspection.id,
+        title: inspection.address,
+        stageLabel: workflowSummary.currentStage.label,
+        note: workflowSummary.nextAction?.description ?? 'Review job',
+        actionLabel: workflowSummary.nextAction?.label ?? 'Open job',
+        href: workflowSummary.nextAction?.href ?? `/inspections/${inspection.id}`,
         daysInStage: getWorkflowStageAgeDays({
           inspection,
           invoice: invoicesByInspectionId.get(inspection.id) ?? null,
           reportStatus: reportByInspectionId.get(inspection.id)?.status ?? null,
           reportUpdatedAt: reportByInspectionId.get(inspection.id)?.updated_at ?? null,
         }),
-      }))
-      .filter(item => item.summary.nextAction)
-      .sort((a, b) => {
-        const priority = (value: ReturnType<typeof getWorkflowSummary>['currentStage']['status']) =>
-          value === 'blocked' ? 0 : value === 'current' ? 1 : 2
-        return priority(a.summary.currentStage.status) - priority(b.summary.currentStage.status) || b.daysInStage - a.daysInStage
-      })
+        priority: workflowSummary.currentStage.status === 'blocked' ? 0 : 2,
+      }})
+      .filter(item => item.actionLabel)
+    const attentionJobs = [...stageAttention, ...inspectionAttention]
+      .sort((a, b) => a.priority - b.priority || b.daysInStage - a.daysInStage)
       .slice(0, 8)
 
     return <DashboardUI
@@ -91,6 +124,7 @@ export default async function DashboardPage() {
     { data: recentRaw },
     { count: completedLast30Days },
     { count: overdueCount },
+    { data: clientsRaw },
     { data: workflowInspectionsRaw },
     { data: workflowInvoicesRaw },
     { data: workflowReportsRaw },
@@ -135,6 +169,10 @@ export default async function DashboardPage() {
       .eq('user_id', user!.id)
       .eq('status', 'overdue'),
     supabase
+      .from('clients')
+      .select('*')
+      .eq('user_id', user!.id),
+    supabase
       .from('inspections')
       .select('id, user_id, client_id, agent_id, service_id, template_id, address, city, state, zip, scheduled_date, scheduled_time, duration_minutes, status, inspection_type, notes, square_footage, year_built, price, report_locked, created_at, updated_at')
       .eq('user_id', user!.id),
@@ -156,27 +194,61 @@ export default async function DashboardPage() {
   const workflowReports = (workflowReportsRaw ?? []) as Pick<InspectionReport, 'inspection_id' | 'status' | 'updated_at'>[]
   const invoicesByInspectionId = new Map(workflowInvoices.map(invoice => [invoice.inspection_id, invoice] as const))
   const reportByInspectionId = new Map(workflowReports.map(report => [report.inspection_id, report] as const))
-  const attentionJobs = workflowInspections
+  const actionSnapshot = buildActionStageSnapshot({
+    clients: (clientsRaw ?? []) as Client[],
+    inspections: workflowInspections,
+    invoices: workflowInvoices,
+    reports: workflowReports,
+  })
+  const stageAttention: DashboardAttentionItem[] = [...actionSnapshot.schedule, ...actionSnapshot.lead].map(item => ({
+    id: item.id,
+    title: item.title,
+    stageLabel: item.stage === 'schedule' ? 'Schedule' : 'Lead',
+    note: item.note,
+    actionLabel: item.actionLabel,
+    href: item.href,
+    daysInStage: item.ageDays ?? 0,
+    priority: item.stage === 'schedule' ? 0 : 1,
+  }))
+  const inspectionAttention: DashboardAttentionItem[] = workflowInspections
     .map(inspection => ({
-      inspection,
-      summary: getWorkflowSummary({
+      id: inspection.id,
+      title: inspection.address,
+      stageLabel: getWorkflowSummary({
         inspection,
         invoice: invoicesByInspectionId.get(inspection.id) ?? null,
         reportStatus: reportByInspectionId.get(inspection.id)?.status ?? null,
-      }),
+      }).currentStage.label,
+      note: getWorkflowSummary({
+        inspection,
+        invoice: invoicesByInspectionId.get(inspection.id) ?? null,
+        reportStatus: reportByInspectionId.get(inspection.id)?.status ?? null,
+      }).nextAction?.description ?? 'Review job',
+      actionLabel: getWorkflowSummary({
+        inspection,
+        invoice: invoicesByInspectionId.get(inspection.id) ?? null,
+        reportStatus: reportByInspectionId.get(inspection.id)?.status ?? null,
+      }).nextAction?.label ?? 'Open job',
+      href: getWorkflowSummary({
+        inspection,
+        invoice: invoicesByInspectionId.get(inspection.id) ?? null,
+        reportStatus: reportByInspectionId.get(inspection.id)?.status ?? null,
+      }).nextAction?.href ?? `/inspections/${inspection.id}`,
       daysInStage: getWorkflowStageAgeDays({
         inspection,
         invoice: invoicesByInspectionId.get(inspection.id) ?? null,
         reportStatus: reportByInspectionId.get(inspection.id)?.status ?? null,
         reportUpdatedAt: reportByInspectionId.get(inspection.id)?.updated_at ?? null,
       }),
+      priority: getWorkflowSummary({
+        inspection,
+        invoice: invoicesByInspectionId.get(inspection.id) ?? null,
+        reportStatus: reportByInspectionId.get(inspection.id)?.status ?? null,
+      }).currentStage.status === 'blocked' ? 0 : 2,
     }))
-    .filter(item => item.summary.nextAction)
-    .sort((a, b) => {
-      const priority = (value: ReturnType<typeof getWorkflowSummary>['currentStage']['status']) =>
-        value === 'blocked' ? 0 : value === 'current' ? 1 : 2
-      return priority(a.summary.currentStage.status) - priority(b.summary.currentStage.status) || b.daysInStage - a.daysInStage
-    })
+    .filter(item => item.actionLabel)
+  const attentionJobs = [...stageAttention, ...inspectionAttention]
+    .sort((a, b) => a.priority - b.priority || b.daysInStage - a.daysInStage)
     .slice(0, 8)
 
   return <DashboardUI
@@ -211,7 +283,7 @@ function DashboardUI({
   completedLast30Days: number
   overdueCount: number
   recentActivity: Array<{ id: string; type: string; description: string; created_at: string }>
-  attentionJobs: Array<{ inspection: Inspection; summary: ReturnType<typeof getWorkflowSummary>; daysInStage: number }>
+  attentionJobs: DashboardAttentionItem[]
 }) {
   return (
     <div className="p-4 md:p-8 space-y-8 animate-rise-in">
@@ -317,25 +389,25 @@ function DashboardUI({
             {!attentionJobs.length ? (
               <p className="text-sm text-[#6d766f]">No active handoffs right now.</p>
             ) : (
-              attentionJobs.map(({ inspection, summary, daysInStage }) => (
+              attentionJobs.map(item => (
                 <Link
-                  key={inspection.id}
-                  href={summary.nextAction?.href ?? `/inspections/${inspection.id}`}
+                  key={`${item.stageLabel}-${item.id}`}
+                  href={item.href}
                   className="block rounded-2xl border border-[#ddd3c0] bg-[#fffdf8] px-5 py-4 hover:border-[#bcae90] hover:bg-white"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="truncate text-base font-semibold text-[#23352c]">{inspection.address}</div>
+                      <div className="truncate text-base font-semibold text-[#23352c]">{item.title}</div>
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                         <span className="rounded-full border border-[#d8cfbd] bg-white px-2.5 py-1 text-[#425147]">
-                          {summary.currentStage.label}
+                          {item.stageLabel}
                         </span>
                         <span className="rounded-full border border-[#d8cfbd] bg-[#f7f0e2] px-2.5 py-1 text-[#7f5720]">
-                          {daysInStage} day{daysInStage === 1 ? '' : 's'} in stage
+                          {item.daysInStage} day{item.daysInStage === 1 ? '' : 's'} in stage
                         </span>
                       </div>
-                      <div className="mt-3 text-sm text-[#59645c]">{summary.nextAction?.label}</div>
-                      <div className="mt-1 text-sm text-[#7a847d]">{summary.nextAction?.description}</div>
+                      <div className="mt-3 text-sm text-[#59645c]">{item.actionLabel}</div>
+                      <div className="mt-1 text-sm text-[#7a847d]">{item.note}</div>
                     </div>
                     <ArrowRight className="h-4 w-4 flex-shrink-0 text-[#7a847d]" />
                   </div>

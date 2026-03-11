@@ -8,11 +8,9 @@ import { Plus } from 'lucide-react'
 import type { Client, Inspection, InspectionReport, Invoice } from '@/types'
 import {
   isDemoMode,
-  DEMO_CLIENTS,
-  DEMO_INSPECTIONS,
-  DEMO_INVOICES,
   DEMO_INSPECTION_REPORTS,
 } from '@/lib/demo'
+import { getServerDemoData } from '@/lib/demo-state-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,9 +21,10 @@ export default async function PrepPage() {
   let reports: Pick<InspectionReport, 'inspection_id' | 'status'>[] = []
 
   if (isDemoMode()) {
-    clients = DEMO_CLIENTS
-    inspections = DEMO_INSPECTIONS
-    invoices = DEMO_INVOICES
+    const demoData = await getServerDemoData()
+    clients = demoData.clients
+    inspections = demoData.inspections
+    invoices = demoData.invoices
     reports = DEMO_INSPECTION_REPORTS
   } else {
     const supabase = await createServerSupabaseClient()

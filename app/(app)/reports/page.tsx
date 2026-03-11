@@ -3,7 +3,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
 import { FileText, ChevronRight, PlusCircle, ClipboardCheck } from 'lucide-react'
-import { isDemoMode, DEMO_CLIENTS, DEMO_REPORT_TEMPLATES, DEMO_INSPECTION_REPORTS, DEMO_INSPECTIONS, DEMO_INVOICES } from '@/lib/demo'
+import { isDemoMode, DEMO_REPORT_TEMPLATES, DEMO_INSPECTION_REPORTS } from '@/lib/demo'
+import { getServerDemoData } from '@/lib/demo-state-server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import type { Client, ReportTemplate, Inspection, InspectionReport, Invoice } from '@/types'
 import { ActionQueueCard, StageHeader } from '@/components/action-system'
@@ -24,12 +25,13 @@ export default async function ReportsPage({
   let stageSnapshot: ReturnType<typeof buildActionStageSnapshot>
 
   if (isDemoMode()) {
+    const demoData = await getServerDemoData()
     templates = DEMO_REPORT_TEMPLATES
     reports = DEMO_INSPECTION_REPORTS
     stageSnapshot = buildActionStageSnapshot({
-      clients: DEMO_CLIENTS,
-      inspections: DEMO_INSPECTIONS,
-      invoices: DEMO_INVOICES,
+      clients: demoData.clients,
+      inspections: demoData.inspections,
+      invoices: demoData.invoices,
       reports: DEMO_INSPECTION_REPORTS,
     })
   } else {

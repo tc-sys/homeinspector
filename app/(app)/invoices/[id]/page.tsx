@@ -8,7 +8,8 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { InvoiceActions } from './invoice-actions'
 import type { Invoice, InspectionReport } from '@/types'
-import { isDemoMode, DEMO_INVOICES, DEMO_INSPECTION_REPORTS } from '@/lib/demo'
+import { isDemoMode, DEMO_INSPECTION_REPORTS } from '@/lib/demo'
+import { getServerDemoData } from '@/lib/demo-state-server'
 import { WorkflowLifecycle } from '@/components/workflow-lifecycle'
 
 export const dynamic = 'force-dynamic'
@@ -20,7 +21,8 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   let reportStatus: InspectionReport['status'] | null = null
 
   if (isDemoMode()) {
-    const demoInvoice = DEMO_INVOICES.find(i => i.id === id) ?? null
+    const demoData = await getServerDemoData()
+    const demoInvoice = demoData.invoices.find(i => i.id === id) ?? null
     if (!demoInvoice) notFound()
     invoice = demoInvoice
     reportStatus = DEMO_INSPECTION_REPORTS.find(report => report.inspection_id === demoInvoice.inspection_id)?.status ?? null
